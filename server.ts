@@ -399,6 +399,44 @@ async function startServer() {
     res.json({ message: "Deleted successfully" });
   });
 
+  // Library
+  app.get("/api/library", authenticate, async (req, res) => {
+    const books = await readCol("books");
+    res.json(books);
+  });
+  app.post("/api/library", authenticate, authorize(["admin"]), async (req, res) => {
+    const books = await readCol("books");
+    const newBook = { ...req.body, id: uuidv4(), status: 'available' };
+    books.push(newBook);
+    await writeCol("books", books);
+    res.json(newBook);
+  });
+
+  // Transport
+  app.get("/api/transport", authenticate, async (req, res) => {
+    const transport = await readCol("transport");
+    res.json(transport);
+  });
+
+  // Dormitory
+  app.get("/api/dormitory", authenticate, async (req, res) => {
+    const dorms = await readCol("dormitory");
+    res.json(dorms);
+  });
+
+  // Exams
+  app.get("/api/exams", authenticate, async (req, res) => {
+    const exams = await readCol("exams");
+    res.json(exams);
+  });
+  app.post("/api/exams", authenticate, authorize(["admin"]), async (req, res) => {
+    const exams = await readCol("exams");
+    const newExam = { ...req.body, id: uuidv4() };
+    exams.push(newExam);
+    await writeCol("exams", exams);
+    res.json(newExam);
+  });
+
   // Stats for Admin Dashboard
   app.get("/api/stats", authenticate, authorize(["admin"]), async (req, res) => {
     const students = await readCol("students");

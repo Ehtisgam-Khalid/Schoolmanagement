@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, AlertCircle, ArrowUpRight, ArrowDownRight, Clock, BookOpen, Trophy } from 'lucide-react';
+import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, AlertCircle, ArrowUpRight, ArrowDownRight, Clock, BookOpen, Trophy, FileText } from 'lucide-react';
 import { Card } from './ui/Card';
+import { Button } from './ui/Button';
 import { studentService, adminService, authService } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { motion } from 'motion/react';
@@ -88,119 +89,170 @@ export const AdminDashboard = () => {
       className="space-y-8"
     >
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
         {statCards.map((stat, i) => (
-          <Card key={i} className="relative overflow-hidden group hover:scale-[1.02] transition-all duration-300 border-slate-200/60 shadow-xl shadow-slate-200/20">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} transition-transform group-hover:rotate-6`}>
+          <Card key={i} className="relative overflow-hidden group border-slate-200/60 shadow-xl shadow-slate-200/20">
+            <div className="p-6 md:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className={`p-4 rounded-[1.5rem] ${stat.bg} ${stat.color} transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm`}>
                   <stat.icon className="h-6 w-6" />
                 </div>
-                <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${stat.up ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                <div className={`flex items-center space-x-1 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl ${stat.up ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
                   {stat.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                   <span>{stat.trend}</span>
                 </div>
               </div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{stat.title}</p>
-              <h2 className="text-3xl font-bold font-display text-slate-900 mt-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{stat.title}</p>
+              <h2 className="text-3xl md:text-4xl font-black font-display text-slate-900 mt-2 tracking-tighter">
                 {stat.prefix}{stat.value.toLocaleString()}
               </h2>
             </div>
-            <div className={`absolute bottom-0 left-0 h-1 w-full opacity-20 ${stat.bg} ${stat.color}`} />
+            <div className={`absolute bottom-0 left-0 h-1.5 w-full opacity-30 ${stat.bg} ${stat.color}`} />
           </Card>
         ))}
       </div>
 
       {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Chart Column */}
-        <div className="lg:col-span-2 space-y-8">
-          <Card className="p-8 border-slate-200/60 shadow-xl shadow-slate-200/20 bg-white" title="Attendance & Engagement" subtitle="Daily trends for student participation">
-            <div className="h-[350px] w-full mt-8">
+        <div className="xl:col-span-2 space-y-8">
+          <Card className="p-1 md:p-2 overflow-hidden" title="Node Throughput" subtitle="Real-time academic performance telemetry">
+            <div className="h-[300px] md:h-[400px] w-full mt-8 p-4 md:p-6">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} 
+                    dy={10} 
                   />
-                  <Area type="monotone" dataKey="attendance" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorAttendance)" />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)', 
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: '20px', 
+                      border: '1px solid rgba(241, 245, 249, 0.8)', 
+                      boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                      padding: '12px 16px'
+                    }}
+                    itemStyle={{ fontWeight: 'black', fontSize: '12px' }}
+                  />
+                  <Area type="monotone" dataKey="attendance" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorAttendance)" dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8, strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-slate-900 text-white p-8 overflow-hidden group">
-              <div className="flex items-center justify-between relative z-10">
-                <div className="space-y-2">
-                  <p className="text-slate-400 text-sm font-medium">Next Faculty Meeting</p>
-                  <h3 className="text-xl font-bold font-display">May 15, 2026</h3>
-                  <div className="flex items-center text-primary text-sm font-medium">
-                    <Clock className="h-4 w-4 mr-2" />
-                    10:30 AM (Auditorium)
+          <Card title="Sync Horizon" subtitle="Interactive node event scheduling grid">
+            <div className="mt-8 grid grid-cols-7 gap-2">
+              {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(day => (
+                <div key={day} className="text-center text-[9px] font-black text-slate-400 uppercase tracking-widest py-2 bg-slate-50 rounded-xl">{day}</div>
+              ))}
+              {Array(31).fill(0).map((_, i) => (
+                <div key={i} className={`aspect-square flex items-center justify-center rounded-2xl text-[11px] font-black border transition-all ${i + 1 === 15 ? 'bg-primary text-white shadow-lg shadow-primary/30 border-transparent' : 'bg-white text-slate-400 border-slate-100 hover:border-primary/20 hover:text-slate-900 group cursor-pointer'}`}>
+                  {i + 1}
+                  {i + 1 === 15 && <div className="absolute -top-1 -right-1 h-3 w-3 bg-white rounded-full flex items-center justify-center border-2 border-primary"><div className="h-1 w-1 bg-primary rounded-full" /></div>}
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="flex items-center space-x-3">
+                <div className="h-2 w-2 rounded-full bg-primary animate-ping" />
+                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Active Sync: Faculty Meeting Alpha (10:30)</span>
+              </div>
+              <Button size="sm" variant="ghost" className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Expand Feed</Button>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="bg-[#0f172a] text-white p-1 overflow-hidden group border-none">
+              <div className="p-8 relative z-10 flex flex-col h-full justify-between min-h-[160px]">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Next Sync Event</p>
+                    <h3 className="text-2xl font-black font-display tracking-tight uppercase">Faculty <span className="text-primary italic">Audit</span></h3>
+                  </div>
+                  <div className="h-14 w-14 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-500 group-hover:bg-primary group-hover:rotate-12 group-hover:scale-110">
+                    <Calendar className="h-7 w-7 text-white" />
                   </div>
                 </div>
-                <div className="h-12 w-12 rounded-full border border-slate-700 flex items-center justify-center transition-transform group-hover:scale-110">
-                  <Calendar className="h-6 w-6" />
+                
+                <div className="flex items-center text-primary font-black uppercase tracking-widest text-[11px] mt-4">
+                  <Clock className="h-4 w-4 mr-2" />
+                  May 15 &bull; 10:30 &bull; AUDITORIUM ALPHA
                 </div>
               </div>
-              <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 w-64 h-64 bg-primary/20 rounded-full blur-[80px]" />
+              {/* Animated decorative layer */}
+              <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 w-64 h-64 bg-primary/20 rounded-full blur-[90px] group-hover:bg-primary/30 transition-all duration-700" />
             </Card>
 
-            <Card className="bg-primary p-8 text-white relative overflow-hidden group">
-              <div className="relative z-10">
-                <p className="text-primary-foreground/80 text-sm font-medium">Academic Performance</p>
-                <h3 className="text-4xl font-bold font-display mt-2 italic">88%</h3>
-                <p className="text-primary-foreground/60 text-xs mt-2 font-medium">Across all grades (+4.2% since Mid-term)</p>
+            <Card className="bg-primary p-1 text-white relative overflow-hidden group border-none">
+              <div className="p-8 relative z-10 flex flex-col h-full justify-between min-h-[160px]">
+                <div className="space-y-1">
+                  <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">Aggregate Grade Metric</p>
+                  <h3 className="text-6xl font-black font-display tracking-tighter">88<span className="text-primary-foreground/40 italic">%</span></h3>
+                </div>
+                <p className="text-primary-foreground/60 text-[10px] font-black uppercase tracking-widest mt-4">Growth Protocol: +4.2% Net Gain</p>
               </div>
-              <TrendingUp className="absolute bottom-4 right-4 h-24 w-24 text-primary-foreground/10" />
+              <TrendingUp className="absolute bottom-[-10px] right-[-10px] h-32 w-32 text-white/10 -rotate-12 transition-transform duration-700 group-hover:rotate-0 group-hover:scale-110" />
             </Card>
           </div>
         </div>
 
         {/* Sidebar Column */}
         <div className="space-y-8">
-          <Card className="p-6" title="Recent Notifications" subtitle="Latest system alerts">
-            <div className="space-y-6 mt-6">
+          <Card className="" title="Signal Feed" subtitle="Latest encrypted system alerts">
+            <div className="space-y-8 mt-4">
               {[
-                { title: 'New Enrollment', desc: 'Siddiq Jan, Grade 8-C', time: '12m ago', icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-50' },
-                { title: 'Fee Alert', desc: '5 students pending (Class 10)', time: '1h ago', icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-50' },
-                { title: 'Result Published', desc: 'Chemistry Finals Grade 11', time: '3h ago', icon: ArrowUpRight, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                { title: 'Teacher Assigned', desc: 'Ms. Sara - Mathematics', time: '5h ago', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+                { title: 'Inbound Registry', desc: 'Siddiq Jan &bull; Grade 8-C', time: '12m ago', icon: GraduationCap, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                { title: 'Credit Dues', desc: '5 nodes pending (Class 10)', time: '1h ago', icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                { title: 'Data Release', desc: 'Chemistry Finals Grade 11', time: '3h ago', icon: ArrowUpRight, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                { title: 'Asset Update', desc: 'Ms. Sara &bull; Mathematics', time: '5h ago', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
               ].map((item, i) => (
-                <div key={i} className="flex space-x-4">
-                  <div className={`flex-shrink-0 h-10 w-10 rounded-xl ${item.bg} flex items-center justify-center ${item.color}`}>
+                <div key={i} className="flex space-x-5 group/item cursor-pointer">
+                  <div className={`flex-shrink-0 h-12 w-12 rounded-2xl ${item.bg} flex items-center justify-center ${item.color} border border-transparent group-hover/item:border-current transition-all ring-0 group-hover/item:ring-4 ring-slate-50`}>
                     <item.icon className="h-5 w-5" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">{item.title}</p>
-                    <p className="text-xs text-slate-500 truncate">{item.desc}</p>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-wider">{item.time}</p>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight group-hover/item:text-primary transition-colors truncate">{item.title}</p>
+                    <p className="text-[11px] text-slate-500 font-bold truncate mt-0.5" dangerouslySetInnerHTML={{ __html: item.desc }} />
+                    <p className="text-[9px] uppercase font-black text-slate-400 mt-2 tracking-[0.15em]">{item.time}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <button className="w-full mt-8 py-3 text-sm font-bold text-primary hover:bg-primary/5 rounded-xl transition-colors">
-              View All History
+            <button className="w-full mt-10 py-4 text-[10px] font-black uppercase tracking-[0.3em] text-primary hover:bg-primary/10 rounded-2xl transition-all border border-transparent hover:border-primary/20 active:scale-95">
+              Access Full Logs
             </button>
           </Card>
 
-          <Card className="p-6 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white relative overflow-hidden">
-            <div className="relative z-10 space-y-4">
-              <h3 className="text-lg font-bold font-display leading-tight">Generate School Report (PDF)</h3>
-              <p className="text-indigo-100 text-sm opacity-80">Get a comprehensive overview of students, staff, and financial standing.</p>
-              <button className="w-full py-3 bg-white text-indigo-700 font-bold rounded-xl shadow-lg shadow-black/10 hover:shadow-xl transition-all">
-                Download Now
+          <Card className="p-1 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 border-none relative overflow-hidden group shadow-2xl shadow-indigo-500/20">
+            <div className="p-8 relative z-10 space-y-6">
+              <div className="h-14 w-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-6">
+                <FileText className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black font-display text-white leading-tight uppercase tracking-tight">Intelligence <span className="text-indigo-300 italic">Report</span></h3>
+                <p className="text-indigo-100/60 text-xs font-bold mt-2 leading-relaxed uppercase tracking-widest">Aggregate School Performance Analytics (PDF)</p>
+              </div>
+              <button className="w-full py-4 bg-white text-indigo-700 text-xs font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-black/20 hover:shadow-2xl hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95">
+                Generate Export
               </button>
             </div>
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2" />
           </Card>
         </div>
       </div>

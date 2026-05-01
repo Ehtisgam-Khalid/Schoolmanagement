@@ -44,80 +44,95 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#06080b] relative overflow-hidden font-sans">
-      {/* Dynamic Animated Background */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/20 rounded-full blur-[140px] animate-pulse" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[140px]" />
-        <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[100px]" />
+    <div className="min-h-screen flex items-center justify-center bg-[#06080b] relative overflow-hidden font-sans p-4 md:p-0">
+      {/* Advanced Geometric Background */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/30 rounded-full blur-[160px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/20 rounded-full blur-[160px]" />
+        <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] bg-emerald-500/10 rounded-full blur-[140px]" />
         
-        {/* Subtle Grid Overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        {/* Animated Particles Simulation (Visual) */}
+        <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+        
+        {/* Floating Glass Shapes */}
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}
+          className="absolute top-1/4 left-1/4 w-96 h-96 border border-white/5 rounded-full"
+        />
+        <motion.div 
+          animate={{ rotate: -360 }}
+          transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+          className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] border border-white/5 rounded-[4rem]"
+        />
       </div>
       
       <motion.div 
         key={isLogin ? 'login' : 'register'}
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="w-full max-w-[480px] px-6 relative z-10 py-12"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[540px] relative z-10"
       >
-        <div className="text-center mb-10">
+        <div className="text-center mb-12">
           <motion.div 
-            initial={{ scale: 0.5, rotate: -15 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', damping: 10 }}
-            className="inline-flex items-center justify-center p-5 bg-gradient-to-tr from-primary via-primary to-indigo-600 rounded-[2.5rem] shadow-[0_20px_50px_rgba(8,_126,_164,_0.3)] mb-8"
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="inline-flex items-center space-x-3 mb-6"
           >
-            <GraduationCap className="h-12 w-12 text-white" />
+            <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_30px_rgba(8,126,164,0.5)]">
+              <GraduationCap className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-2xl font-black text-white tracking-widest font-display">EDUFLOW</span>
           </motion.div>
-          <h1 className="text-5xl font-black font-display text-white tracking-tight mb-2">EduFlow</h1>
-          <p className="text-slate-400 font-medium text-lg tracking-tight">
-            {isLogin ? 'Digital Campus Management System' : 'Join our vibrant academic community'}
+          
+          <h1 className="text-4xl md:text-6xl font-black font-display text-white tracking-tighter mb-4 leading-none uppercase">
+            {isLogin ? 'System' : 'Join'} <span className="text-primary italic">Access</span>
+          </h1>
+          <p className="text-slate-500 font-bold uppercase tracking-[0.4em] text-[10px] md:text-sm">
+            {isLogin ? 'Mission-Critical Campus Node' : 'Initialize New Account Protocol'}
           </p>
         </div>
 
-        <div className="bg-slate-900/40 backdrop-blur-3xl p-8 md:p-12 rounded-[40px] border border-slate-800/50 shadow-2xl shadow-black/50">
-          <form onSubmit={handleSubmit} className="space-y-7">
+        <div className="bg-slate-900/40 backdrop-blur-2xl p-6 md:p-14 rounded-[3rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.8)] relative group overflow-hidden">
+          {/* Internal Glow */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[60px] rounded-full group-hover:bg-primary/30 transition-all duration-500" />
+          
+          <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
             {error && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center p-4 text-sm text-rose-400 bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-inner"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y:0 }}
+                className="flex items-center p-4 text-xs font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 rounded-2xl border border-rose-500/20"
               >
                 <AlertCircle className="h-4 w-4 mr-3 flex-shrink-0" />
-                <span className="font-medium">{error}</span>
+                {error}
               </motion.div>
             )}
             
-            <div className="space-y-5">
+            <div className="space-y-6">
               {!isLogin && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Full Name</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-5 top-4 h-5 w-5 text-slate-600 group-focus-within:text-primary transition-colors" />
-                      <input
-                        type="text"
-                        placeholder="e.g. Johnathan Smith"
-                        className="w-full bg-slate-950/50 border border-slate-800/80 rounded-2xl pl-14 pr-5 py-4 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans text-sm"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-primary uppercase tracking-[0.25em] ml-1">Registry Name</label>
+                  <input
+                    type="text"
+                    placeholder="FULL LEGAL NAME"
+                    className="w-full bg-slate-950/60 border border-slate-800/80 rounded-2xl px-6 py-5 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-slate-950 transition-all font-sans text-sm font-bold tracking-tight uppercase"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
               )}
               
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Official Email</label>
-                <div className="relative group text-white">
-                  <Mail className="absolute left-5 top-4 h-5 w-5 text-slate-600 group-focus-within:text-primary transition-colors" />
+                <label className="text-[10px] font-black text-primary uppercase tracking-[0.25em] ml-1">Terminal ID (Email)</label>
+                <div className="relative group">
+                  <Mail className="absolute left-6 top-5.5 h-4 w-4 text-slate-700 group-focus-within:text-primary transition-colors" />
                   <input
                     type="email"
-                    placeholder="student@eduflow.edu"
-                    className="w-full bg-slate-950/50 border border-slate-800/80 rounded-2xl pl-14 pr-5 py-4 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans text-sm"
+                    placeholder="USER@EDUFLOW.SYS"
+                    className="w-full bg-slate-950/60 border border-slate-800/80 rounded-2xl pl-14 pr-6 py-5 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-slate-950 transition-all font-sans text-sm font-bold tracking-tight uppercase"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -127,15 +142,15 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
               
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Security Password</label>
-                  {isLogin && <a href="#" className="text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-widest transition-colors">Forgot?</a>}
+                  <label className="text-[10px] font-black text-primary uppercase tracking-[0.25em]">Security Key (Pass)</label>
+                  {isLogin && <a href="#" className="text-[9px] font-black text-slate-500 hover:text-primary uppercase tracking-widest transition-colors">Reset Protocol?</a>}
                 </div>
                 <div className="relative group">
-                  <Lock className="absolute left-5 top-4 h-5 w-5 text-slate-600 group-focus-within:text-primary transition-colors" />
+                  <Lock className="absolute left-6 top-5.5 h-4 w-4 text-slate-700 group-focus-within:text-primary transition-colors" />
                   <input
                     type="password"
                     placeholder="••••••••••••"
-                    className="w-full bg-slate-950/50 border border-slate-800/80 rounded-2xl pl-14 pr-5 py-4 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans text-sm"
+                    className="w-full bg-slate-950/60 border border-slate-800/80 rounded-2xl pl-14 pr-6 py-5 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-slate-950 transition-all font-sans text-sm font-bold tracking-tight"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -144,51 +159,58 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full py-8 rounded-2xl text-base font-black shadow-[0_20px_40px_rgba(8,_126,_164,_0.2)] group bg-primary hover:bg-primary/90" isLoading={loading}>
-              {isLogin ? 'AUTHENTICATE & ENTER' : 'START YOUR JOURNEY'}
-              {!loading && <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1.5 transition-transform" />}
+            <Button type="submit" className="w-full py-8 rounded-2xl text-sm font-black tracking-[0.2em] shadow-[0_15px_30px_rgba(8,126,164,0.3)] group bg-primary hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98]" isLoading={loading}>
+              {isLogin ? 'INITIATE AUTHENTICATION' : 'CREATE CORE IDENTITY'}
+              {!loading && <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1.5 transition-transform" />}
             </Button>
           </form>
 
-          {/* Quick Access Info */}
+          {/* Role Decryptors (Access Keys) */}
           {isLogin && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="mt-12 pt-10 border-t border-slate-800/50"
+              className="mt-14 pt-10 border-t border-slate-800/40"
             >
-              <div className="grid grid-cols-2 gap-4">
-                <div 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button 
                   onClick={() => { setEmail('admin@eduflow.com'); setPassword('admin123'); }}
-                  className="bg-slate-950/40 p-4 rounded-3xl border border-slate-800/50 hover:border-primary/50 transition-all cursor-pointer group text-left"
+                  className="relative overflow-hidden bg-slate-950/60 p-5 rounded-3xl border border-slate-800/50 hover:border-primary/50 transition-all group flex items-center space-x-4 h-full"
                 >
-                  <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-2">Administrator</p>
-                  <p className="text-xs font-bold text-white mb-1">Super User</p>
-                  <p className="text-[9px] text-slate-600 font-mono italic">Click to fill</p>
-                </div>
-                <div 
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all">A</div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Administrator</p>
+                    <p className="text-[9px] text-slate-600 font-bold uppercase tracking-tight">Root Authority</p>
+                  </div>
+                </button>
+                <button 
                   onClick={() => { setEmail('student@eduflow.com'); setPassword('student123'); }}
-                  className="bg-slate-950/40 p-4 rounded-3xl border border-slate-800/50 hover:border-indigo-500/50 transition-all cursor-pointer group text-left"
+                  className="relative overflow-hidden bg-slate-950/60 p-5 rounded-3xl border border-slate-800/50 hover:border-indigo-500/50 transition-all group flex items-center space-x-4 h-full"
                 >
-                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">Student Portal</p>
-                  <p className="text-xs font-bold text-white mb-1">Demo Student</p>
-                  <p className="text-[9px] text-slate-600 font-mono italic">Click to fill</p>
-                </div>
+                  <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-black text-lg border border-indigo-500/20 group-hover:bg-indigo-500 group-hover:text-white transition-all">S</div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black text-white uppercase tracking-widest">Student Portal</p>
+                    <p className="text-[9px] text-slate-600 font-bold uppercase tracking-tight">Academic Node</p>
+                  </div>
+                </button>
               </div>
               
-              <div className="mt-8 flex items-center justify-center space-x-3 text-[10px] text-slate-600 bg-slate-950/50 py-3 px-6 rounded-2xl border border-slate-800/30 w-full">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-bold tracking-tight">Academic Server: Online & Responsive</span>
+              <div className="mt-8 flex items-center justify-center space-x-3 text-[10px] text-slate-600 bg-slate-950/40 py-3.5 px-6 rounded-2xl border border-white/5 w-full">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                <span className="font-black uppercase tracking-[0.2em]">Primary Link Stabilized</span>
               </div>
             </motion.div>
           )}
         </div>
 
         <div className="mt-12 text-center">
-           <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.3em]">
-             &copy; 2026 EduFlow Systems &bull; Precise Academic Control
-           </p>
+           <button 
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-slate-500 hover:text-white text-[11px] font-black uppercase tracking-[0.3em] transition-colors"
+           >
+             {isLogin ? 'Switch to Registration Interface' : 'Return to Authentication Terminal'}
+           </button>
         </div>
       </motion.div>
     </div>

@@ -16,6 +16,10 @@ import { ExamResultModule } from './components/ExamResultModule';
 import { ScheduleModule } from './components/ScheduleModule';
 import { ProfileModule } from './components/ProfileModule';
 import { LeaveApplicationModule } from './components/LeaveApplicationModule';
+import { LibraryModule } from './components/LibraryModule';
+import { ExamModule } from './components/ExamModule';
+import { TransportModule } from './components/TransportModule';
+import { DormitoryModule } from './components/DormitoryModule';
 import { authService } from './services/api';
 import { User } from './types';
 import { GraduationCap, Bell, Search, Settings, Menu } from 'lucide-react';
@@ -102,9 +106,23 @@ export default function App() {
       case 'attendance':
         return <AttendanceModule />;
       case 'exams':
-        return <ExamResultModule />;
+        return <ExamModule user={user} />;
       case 'schedule':
         return <ScheduleModule />;
+      case 'library':
+        return <LibraryModule user={user} />;
+      case 'transport':
+        return <TransportModule user={user} />;
+      case 'dormitory':
+        return <DormitoryModule user={user} />;
+      case 'material':
+        return (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-200">
+            <div className="h-20 w-20 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-500 mb-6 font-display text-4xl">📚</div>
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Study Material Depot</h2>
+            <p className="text-slate-500 mt-2 font-bold uppercase tracking-widest text-xs">Repository synchronization in progress...</p>
+          </div>
+        );
       case 'fees':
         return <FeeModule />;
       case 'announcements':
@@ -113,12 +131,27 @@ export default function App() {
         return <ProfileModule />;
       case 'applications':
         return <LeaveApplicationModule />;
-      case 'academics':
+      case 'settings':
         return (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
-            <div className="h-20 w-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500 mb-6 font-display text-4xl">📚</div>
-            <h2 className="text-2xl font-bold font-display text-slate-900">Academic Planner</h2>
-            <p className="text-slate-500 mt-2">Curriculum and syllabus management tools are almost ready.</p>
+          <div className="max-w-4xl space-y-8">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">System Config</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-xl">
+                  <h3 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-tight">Academic Session</h3>
+                  <select className="w-full bg-slate-50 border border-transparent rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-primary/20">
+                     <option>2025-2026 (Active)</option>
+                     <option>2024-2025</option>
+                  </select>
+               </div>
+               <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-xl">
+                  <h3 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-tight">Visual Identity</h3>
+                  <div className="flex space-x-4">
+                     <div className="h-10 w-10 rounded-full bg-primary ring-4 ring-primary/20 cursor-pointer" />
+                     <div className="h-10 w-10 rounded-full bg-rose-500 cursor-pointer" />
+                     <div className="h-10 w-10 rounded-full bg-indigo-600 cursor-pointer" />
+                  </div>
+               </div>
+            </div>
           </div>
         );
       default:
@@ -137,71 +170,91 @@ export default function App() {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <div className="flex-1 flex flex-col min-h-screen md:ml-64 transition-all duration-300 overflow-x-hidden">
-        {/* Top Navbar */}
-        <header className="h-20 bg-white/95 backdrop-blur-md sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between border-b border-slate-200 shadow-sm">
-          <div className="flex items-center space-x-4">
+      <div className="flex-1 flex flex-col min-h-screen md:ml-72 transition-all duration-500 overflow-x-hidden">
+        {/* Advanced Top Navbar */}
+        <header className="h-24 bg-white/70 backdrop-blur-2xl sticky top-0 z-[100] px-4 md:px-12 flex items-center justify-between border-b border-slate-200/50 shadow-[0_5px_30px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center space-x-6">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="md:hidden p-2 hover:bg-slate-100 rounded-xl transition-colors"
+              className="md:hidden p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all active:scale-95"
             >
-              <Menu className="h-6 w-6 text-slate-700" />
+              <Menu className="h-6 w-6 text-slate-900" />
             </button>
-            <h1 className="text-xl font-bold text-slate-900 font-display capitalize hidden md:block">
-              {activeTab.replace('-', ' ')}
-            </h1>
-            <div className="md:hidden flex items-center space-x-2">
-              <div className="bg-primary p-1.5 rounded-lg">
-                <GraduationCap className="h-5 w-5 text-white" />
+            
+            <div className="hidden md:flex flex-col">
+              <h1 className="text-2xl font-black text-slate-900 font-display capitalize tracking-tighter">
+                {activeTab.replace('-', ' ')}
+              </h1>
+              <div className="flex items-center space-x-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                <span className="text-primary tracking-normal">EDU</span>
+                <div className="h-1 w-1 rounded-full bg-slate-300" />
+                <span>CENTRAL NODE</span>
+                <div className="h-1 w-1 rounded-full bg-slate-300" />
+                <span className="text-slate-500">SECURE</span>
               </div>
-              <span className="font-bold text-lg text-slate-900">EduFlow</span>
+            </div>
+            
+            <div className="md:hidden flex items-center space-x-3">
+              <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
+                <GraduationCap className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-black text-xl text-slate-900 tracking-tighter uppercase font-display">EduFlow</span>
             </div>
           </div>
           
-          <div className="flex items-center space-x-4 md:space-x-6">
-            <div className="relative hidden lg:block">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <div className="flex items-center space-x-3 md:space-x-8">
+            <div className="relative hidden xl:block">
+              <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Search anything..." 
-                className="bg-slate-100 border-none rounded-xl pl-10 pr-4 py-2 text-sm w-64 focus:ring-2 focus:ring-primary/20 transition-all font-sans"
+                placeholder="Global Database Search..." 
+                className="bg-slate-100/50 border border-transparent rounded-[1.25rem] pl-12 pr-6 py-3.5 text-xs w-72 focus:ring-2 focus:ring-primary/20 focus:bg-white focus:border-slate-200 transition-all font-bold uppercase tracking-widest"
               />
             </div>
             
-            <button 
-              onClick={() => handleTabChange('announcements')}
-              className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors relative"
-            >
-              <Bell className="h-5 w-5 text-slate-600" />
-              {notificationCount > 0 && (
-                <span className="absolute top-2 right-2.5 h-4 w-4 bg-red-500 rounded-full border-2 border-white text-[10px] text-white flex items-center justify-center font-bold">
-                  {notificationCount}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <button 
+                onClick={() => handleTabChange('announcements')}
+                className="p-3 bg-slate-100/80 hover:bg-slate-200 border border-slate-200/50 rounded-2xl transition-all relative group"
+              >
+                <Bell className="h-5 w-5 text-slate-700 group-hover:scale-110 transition-transform" />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-white rounded-full border-2 border-white text-[10px] flex items-center justify-center font-black shadow-lg shadow-primary/40">
+                    {notificationCount}
+                  </span>
+                )}
+              </button>
 
-            <button className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
-              <Settings className="h-5 w-5 text-slate-600" />
-            </button>
+              <button className="p-3 bg-slate-100/80 hover:bg-slate-200 border border-slate-200/50 rounded-2xl transition-all group hidden sm:block">
+                <Settings className="h-5 w-5 text-slate-700 group-hover:rotate-45 transition-transform" />
+              </button>
+            </div>
 
-            <div className="h-10 w-px bg-slate-200 mx-1 hidden sm:block" />
+            <div className="h-10 w-px bg-slate-200/60 mx-1 hidden sm:block" />
 
             <div 
               onClick={() => setActiveTab('profile')}
-              className="flex items-center space-x-3 cursor-pointer group hover:opacity-80 transition-opacity"
+              className="flex items-center space-x-4 cursor-pointer group"
             >
-              <div className="flex flex-col text-right hidden sm:block">
-                <span className="text-sm font-bold text-slate-900 leading-none group-hover:text-primary transition-colors">{user.name}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{user.role}</span>
+              <div className="flex flex-col text-right hidden lg:block">
+                <span className="text-sm font-black text-slate-900 leading-none group-hover:text-primary transition-colors uppercase tracking-tight">{user.name}</span>
+                <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1.5 opacity-70">Lvl 4 {user.role}</span>
               </div>
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-                {user.name.charAt(0)}
+              <div className="relative">
+                <div className="h-12 w-12 rounded-2xl bg-slate-100 border-2 border-slate-200/50 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-0.5">
+                   {user.profilePic && user.profilePic !== "" ? (
+                     <img src={user.profilePic} className="h-full w-full object-cover" alt={user.name} />
+                   ) : (
+                     <span className="text-lg font-black text-primary font-display">{user.name.charAt(0)}</span>
+                   )}
+                </div>
+                <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-500 rounded-lg border-2 border-white shadow-sm" />
               </div>
             </div>
           </div>
         </header>
 
-        <main className="p-4 md:p-8 flex-1">
+        <main className="p-4 md:p-12 flex-1">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

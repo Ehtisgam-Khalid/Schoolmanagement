@@ -157,7 +157,16 @@ export const StudentList = () => {
         <div className="flex items-center space-x-2">
           <Button variant="outline" className="h-11 border-slate-200">
             <Filter className="h-4 w-4 mr-2" />
-            Filters
+            Selection
+          </Button>
+          <div className="h-11 bg-slate-200 w-px mx-2 hidden sm:block" />
+          <Button variant="outline" className="h-11 border-slate-200 text-blue-600 hover:bg-blue-50">
+            <GraduationCap className="h-4 w-4 mr-2" />
+            Promote
+          </Button>
+          <Button variant="outline" className="h-11 border-slate-200">
+            <Plus className="h-4 w-4 mr-2" />
+            Bulk Import
           </Button>
           <Button className="h-11 shadow-lg shadow-primary/20" onClick={() => setIsAdding(true)}>
             <Plus className="h-4 w-4 mr-2" />

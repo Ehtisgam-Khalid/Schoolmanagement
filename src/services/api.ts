@@ -79,6 +79,13 @@ export const adminService = {
     const { data } = await api.post('/attendance', records);
     return data;
   },
+  // New Methods
+  getLibrary: () => api.get('/library').then(res => res.data),
+  addBook: (book: any) => api.post('/library', book).then(res => res.data),
+  getTransport: () => api.get('/transport').then(res => res.data),
+  getDormitory: () => api.get('/dormitory').then(res => res.data),
+  getExams: () => api.get('/exams').then(res => res.data),
+  addExam: (exam: any) => api.post('/exams', exam).then(res => res.data),
 };
 
 export const studentService = {
