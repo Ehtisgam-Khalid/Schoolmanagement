@@ -335,9 +335,9 @@ export const FeeModule = () => {
   });
 
   if (user?.role === 'student') {
-    const pendingFees = fees.filter(f => f.status === 'pending');
+    const pendingFeesList = fees.filter(f => f.status !== 'paid');
     const myProfile = students.find(s => s.id === user.id) || user;
-    const totalPending = pendingFees.reduce((acc, f) => acc + f.amount, 0);
+    const totalPending = pendingFeesList.reduce((acc, f) => acc + f.amount, 0);
 
     return (
       <div className="space-y-8">
@@ -367,24 +367,29 @@ export const FeeModule = () => {
               </p>
               
               <div className="flex flex-wrap gap-3">
-                {pendingFees.length > 0 && (
+                {pendingFeesList.length > 0 && (
                   <>
                     <Button 
                       className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary group-hover:scale-105 transition-transform"
-                      onClick={() => setShowVoucher(pendingFees[0])}
+                      onClick={() => setShowVoucher(pendingFeesList.find(f => f.status === 'pending') || pendingFeesList[0])}
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Get Voucher
                     </Button>
-                    <Button 
-                      variant="outline"
-                      className="rounded-xl px-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                      onClick={() => handlePaymentSubmit(pendingFees[0].id)}
-                      isLoading={paying === pendingFees[0].id}
-                    >
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Submit Proof
-                    </Button>
+                    {pendingFeesList.some(f => f.status === 'pending') && (
+                      <Button 
+                        variant="outline"
+                        className="rounded-xl px-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                        onClick={() => {
+                          const toPay = pendingFeesList.find(f => f.status === 'pending');
+                          if (toPay) handlePaymentSubmit(toPay.id);
+                        }}
+                        isLoading={paying !== null}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Submit Proof
+                      </Button>
+                    )}
                   </>
                 )}
               </div>

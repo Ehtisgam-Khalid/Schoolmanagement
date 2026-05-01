@@ -392,6 +392,13 @@ async function startServer() {
     res.json(newAnn);
   });
 
+  app.delete("/api/announcements/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let announcements = await readCol("announcements");
+    announcements = announcements.filter((a: any) => a.id !== req.params.id);
+    await writeCol("announcements", announcements);
+    res.json({ message: "Deleted successfully" });
+  });
+
   // Stats for Admin Dashboard
   app.get("/api/stats", authenticate, authorize(["admin"]), async (req, res) => {
     const students = await readCol("students");
@@ -455,13 +462,12 @@ async function startServer() {
   });
 
   // Schedule
-  app.get("/api/schedule", authenticate, async (req, res) => {
-    res.json([
-      { id: '1', time: '08:00 AM', subject: 'Mathematics', teacher: 'Mr. Khan', room: 'Room 202' },
-      { id: '2', time: '09:00 AM', subject: 'English', teacher: 'Ms. Sarah', room: 'Room 101' },
-      { id: '3', time: '10:30 AM', subject: 'Physics', teacher: 'Dr. Ahmad', room: 'Lab A' },
-      { id: '4', time: '11:30 AM', subject: 'Chemistry', teacher: 'Ms. Fatima', room: 'Lab B' },
-    ]);
+  app.get("/api/schedule", authenticate, async (req: any, res) => {
+    const schedule = await readCol("schedule");
+    if (req.user.role === "student") {
+      return res.json(schedule.filter((s: any) => s.userId === req.user.id));
+    }
+    res.json(schedule);
   });
 
   // Helper to generate monthly fees

@@ -61,6 +61,16 @@ export const AnnouncementsModule = () => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+    try {
+      await api.delete(`/announcements/${id}`);
+      setAnnouncements(announcements.filter(a => a.id !== id));
+    } catch (err) {
+      alert('Failed to delete announcement');
+    }
+  };
+
   const isAdmin = user?.role === 'admin';
 
   return (
@@ -172,7 +182,10 @@ export const AnnouncementsModule = () => {
                     </div>
                     
                     {isAdmin && (
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-rose-50 text-rose-400 rounded-xl">
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-rose-50 text-rose-400 rounded-xl"
+                      >
                         <Trash2 className="h-5 w-5" />
                       </button>
                     )}
