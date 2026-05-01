@@ -1,0 +1,6 @@
+{
+  "name": "EduFlow: Modern School Management",
+  "description": "A comprehensive full-stack school management system featuring role-based access for admins, teachers, students, and parents. Includes attendance tracking, fee management, exam results, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

@@ -1,0 +1,96 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import axios from 'axios';
+
+export const api = axios.create({
+  baseURL: '/api',
+});
+
+// Interceptor to add auth token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('edu_flow_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const authService = {
+  login: async (credentials: any) => {
+    const { data } = await api.post('/auth/login', credentials);
+    localStorage.setItem('edu_flow_token', data.token);
+    return data;
+  },
+  register: async (credentials: any) => {
+    const { data } = await api.post('/auth/register', credentials);
+    localStorage.setItem('edu_flow_token', data.token);
+    return data;
+  },
+  logout: () => {
+    localStorage.removeItem('edu_flow_token');
+  },
+  getMe: async () => {
+    const { data } = await api.get('/auth/me');
+    return data;
+  },
+};
+
+export const adminService = {
+  getStats: async () => {
+    const { data } = await api.get('/stats');
+    return data;
+  },
+  getUsers: async () => {
+    const { data } = await api.get('/users');
+    return data;
+  },
+  createStudent: async (studentData: any) => {
+    const { data } = await api.post('/students', studentData);
+    return data;
+  },
+  createTeacher: async (teacherData: any) => {
+    const { data } = await api.post('/teachers', teacherData);
+    return data;
+  },
+};
+
+export const studentService = {
+  getStudents: async () => {
+    const { data } = await api.get('/students');
+    return data;
+  },
+};
+
+export const teacherService = {
+  getTeachers: async () => {
+    const { data } = await api.get('/teachers');
+    return data;
+  },
+};
+
+export const applicationService = {
+  getApplications: async () => {
+    const { data } = await api.get('/applications');
+    return data;
+  },
+  sendApplication: async (applicationData: any) => {
+    const { data } = await api.post('/applications', applicationData);
+    return data;
+  },
+  updateStatus: async (id: string, status: string) => {
+    const { data } = await api.patch(`/applications/${id}`, { status });
+    return data;
+  },
+};
+
+export const announcementService = {
+  getAnnouncements: async () => {
+    const { data } = await api.get('/announcements');
+    return data;
+  },
+};
+
+export default api;
