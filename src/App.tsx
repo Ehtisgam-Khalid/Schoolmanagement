@@ -111,9 +111,9 @@ export default function App() {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <div className="flex-1 flex flex-col min-h-screen md:ml-64 transition-all duration-300">
+      <div className="flex-1 flex flex-col min-h-screen md:ml-64 transition-all duration-300 overflow-x-hidden">
         {/* Top Navbar */}
-        <header className="h-20 glass sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between border-b border-slate-200/50">
+        <header className="h-20 bg-white/95 backdrop-blur-md sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between border-b border-slate-200 shadow-sm">
           <div className="flex items-center space-x-4">
             <button 
               onClick={() => setIsSidebarOpen(true)}

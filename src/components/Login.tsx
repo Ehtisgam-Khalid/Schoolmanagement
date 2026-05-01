@@ -44,42 +44,49 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0c10] relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]" />
+    <div className="min-h-screen flex items-center justify-center bg-[#06080b] relative overflow-hidden font-sans">
+      {/* Dynamic Animated Background */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/20 rounded-full blur-[140px] animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[140px]" />
+        <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[100px]" />
+        
+        {/* Subtle Grid Overlay */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      </div>
       
       <motion.div 
         key={isLogin ? 'login' : 'register'}
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-[440px] px-6 relative z-10"
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="w-full max-w-[480px] px-6 relative z-10 py-12"
       >
         <div className="text-center mb-10">
           <motion.div 
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            className="inline-flex items-center justify-center p-4 bg-gradient-to-tr from-primary to-indigo-600 rounded-3xl shadow-2xl shadow-primary/40 mb-6"
+            initial={{ scale: 0.5, rotate: -15 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', damping: 10 }}
+            className="inline-flex items-center justify-center p-5 bg-gradient-to-tr from-primary via-primary to-indigo-600 rounded-[2.5rem] shadow-[0_20px_50px_rgba(8,_126,_164,_0.3)] mb-8"
           >
-            <GraduationCap className="h-10 w-10 text-white" />
+            <GraduationCap className="h-12 w-12 text-white" />
           </motion.div>
-          <h1 className="text-4xl font-bold font-display text-white tracking-tight">EduFlow</h1>
-          <p className="text-slate-400 mt-3 font-medium">
-            {isLogin ? 'Empowering the next generation of learners' : 'Create your student account today'}
+          <h1 className="text-5xl font-black font-display text-white tracking-tight mb-2">EduFlow</h1>
+          <p className="text-slate-400 font-medium text-lg tracking-tight">
+            {isLogin ? 'Digital Campus Management System' : 'Join our vibrant academic community'}
           </p>
         </div>
 
-        <div className="glass p-8 md:p-10 rounded-[32px] border-slate-700/30">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-slate-900/40 backdrop-blur-3xl p-8 md:p-12 rounded-[40px] border border-slate-800/50 shadow-2xl shadow-black/50">
+          <form onSubmit={handleSubmit} className="space-y-7">
             {error && (
               <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="flex items-center p-4 text-sm text-rose-400 bg-rose-500/10 rounded-2xl border border-rose-500/20"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center p-4 text-sm text-rose-400 bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-inner"
               >
-                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-                {error}
+                <AlertCircle className="h-4 w-4 mr-3 flex-shrink-0" />
+                <span className="font-medium">{error}</span>
               </motion.div>
             )}
             
@@ -87,29 +94,15 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
               {!isLogin && (
                 <>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Full Name</label>
                     <div className="relative group">
-                      <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                      <Mail className="absolute left-5 top-4 h-5 w-5 text-slate-600 group-focus-within:text-primary transition-colors" />
                       <input
                         type="text"
-                        placeholder="John Doe"
-                        className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans"
+                        placeholder="e.g. Johnathan Smith"
+                        className="w-full bg-slate-950/50 border border-slate-800/80 rounded-2xl pl-14 pr-5 py-4 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans text-sm"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Class / Grade</label>
-                    <div className="relative group">
-                      <GraduationCap className="absolute left-4 top-3.5 h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
-                      <input
-                        type="text"
-                        placeholder="Grade 10"
-                        className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans"
-                        value={className}
-                        onChange={(e) => setClassName(e.target.value)}
                         required
                       />
                     </div>
@@ -118,13 +111,13 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
               )}
               
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Official Email</label>
                 <div className="relative group text-white">
-                  <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                  <Mail className="absolute left-5 top-4 h-5 w-5 text-slate-600 group-focus-within:text-primary transition-colors" />
                   <input
                     type="email"
-                    placeholder="name@school.com"
-                    className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans"
+                    placeholder="student@eduflow.edu"
+                    className="w-full bg-slate-950/50 border border-slate-800/80 rounded-2xl pl-14 pr-5 py-4 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans text-sm"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -133,13 +126,16 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Security Password</label>
+                  {isLogin && <a href="#" className="text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-widest transition-colors">Forgot?</a>}
+                </div>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-3.5 h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                  <Lock className="absolute left-5 top-4 h-5 w-5 text-slate-600 group-focus-within:text-primary transition-colors" />
                   <input
                     type="password"
-                    placeholder="••••••••"
-                    className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans"
+                    placeholder="••••••••••••"
+                    className="w-full bg-slate-950/50 border border-slate-800/80 rounded-2xl pl-14 pr-5 py-4 text-white placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all font-sans text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -148,50 +144,52 @@ export const Login = ({ onLoginSuccess }: LoginProps) => {
               </div>
             </div>
 
-            {isLogin && (
-              <div className="flex items-center justify-between text-xs px-1">
-                <label className="flex items-center text-slate-400 cursor-pointer hover:text-slate-300 transition-colors">
-                  <input type="checkbox" className="mr-2 rounded border-slate-700 bg-slate-800 text-primary focus:ring-primary/40 transition-all" />
-                  Remember for 30 days
-                </label>
-                <a href="#" className="text-primary hover:text-primary/80 font-bold transition-colors">Forgot password?</a>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full py-7 rounded-2xl text-base font-bold shadow-xl shadow-primary/20 group" isLoading={loading}>
-              {isLogin ? 'Sign In to Dashboard' : 'Create Account'}
-              {!loading && <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />}
+            <Button type="submit" className="w-full py-8 rounded-2xl text-base font-black shadow-[0_20px_40px_rgba(8,_126,_164,_0.2)] group bg-primary hover:bg-primary/90" isLoading={loading}>
+              {isLogin ? 'AUTHENTICATE & ENTER' : 'START YOUR JOURNEY'}
+              {!loading && <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1.5 transition-transform" />}
             </Button>
           </form>
 
-          {/* Login option toggle removed as students are registered by Admin */}
-          
+          {/* Quick Access Info */}
           {isLogin && (
-            <div className="mt-10 pt-8 border-t border-slate-700/30 text-center space-y-6">
-              <div className="space-y-2">
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Administrator Dashboard</p>
-                <div className="font-mono text-slate-300 text-xs bg-slate-800/60 py-2.5 px-3 rounded-xl border border-slate-700/50 flex items-center justify-between">
-                  <span>admin@eduflow.com <span className="text-slate-600 px-2">/</span> admin123</span>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="mt-12 pt-10 border-t border-slate-800/50"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div 
+                  onClick={() => { setEmail('admin@eduflow.com'); setPassword('admin123'); }}
+                  className="bg-slate-950/40 p-4 rounded-3xl border border-slate-800/50 hover:border-primary/50 transition-all cursor-pointer group text-left"
+                >
+                  <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-2">Administrator</p>
+                  <p className="text-xs font-bold text-white mb-1">Super User</p>
+                  <p className="text-[9px] text-slate-600 font-mono italic">Click to fill</p>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-[10px] text-primary/70 font-black uppercase tracking-[0.2em]">Student Portal Demo</p>
-                <div className="font-mono text-slate-300 text-xs bg-primary/5 py-2.5 px-3 rounded-xl border border-primary/20 flex items-center justify-between">
-                  <span>student@eduflow.com <span className="text-slate-600 px-2">/</span> student123</span>
+                <div 
+                  onClick={() => { setEmail('student@eduflow.com'); setPassword('student123'); }}
+                  className="bg-slate-950/40 p-4 rounded-3xl border border-slate-800/50 hover:border-indigo-500/50 transition-all cursor-pointer group text-left"
+                >
+                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">Student Portal</p>
+                  <p className="text-xs font-bold text-white mb-1">Demo Student</p>
+                  <p className="text-[9px] text-slate-600 font-mono italic">Click to fill</p>
                 </div>
               </div>
               
-              <p className="text-[10px] text-slate-500 font-medium italic">
-                * Students can manage attendance, results, fees & leave requests.
-              </p>
-            </div>
+              <div className="mt-8 flex items-center justify-center space-x-3 text-[10px] text-slate-600 bg-slate-950/50 py-3 px-6 rounded-2xl border border-slate-800/30 w-full">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-bold tracking-tight">Academic Server: Online & Responsive</span>
+              </div>
+            </motion.div>
           )}
         </div>
 
-        <p className="text-center mt-8 text-slate-500 text-xs font-medium">
-          &copy; 2026 EduFlow Systems International. All rights reserved.
-        </p>
+        <div className="mt-12 text-center">
+           <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.3em]">
+             &copy; 2026 EduFlow Systems &bull; Precise Academic Control
+           </p>
+        </div>
       </motion.div>
     </div>
   );

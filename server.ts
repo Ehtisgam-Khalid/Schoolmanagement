@@ -67,8 +67,36 @@ async function initDb() {
       };
       students.push(studentProfile);
 
-      await fs.writeFile(path.join(DATA_DIR, "users.json"), JSON.stringify(users, null, 2));
-      await fs.writeFile(path.join(DATA_DIR, "students.json"), JSON.stringify(students, null, 2));
+      // Seed some initial data for the demo student
+      const fees = [
+        { id: uuidv4(), studentId, title: "Monthly Tuition Fee - April", amount: 5000, date: "2026-04-01", status: "paid" },
+        { id: uuidv4(), studentId, title: "Monthly Tuition Fee - May", amount: 5000, date: "2026-05-01", status: "pending" },
+        { id: uuidv4(), studentId, title: "Library Membership", amount: 1000, date: "2026-05-05", status: "pending" },
+      ];
+      await writeCol("fees", fees);
+
+      const results = [
+        { id: uuidv4(), studentId, examId: "1", subject: "Mathematics", marks: 85, totalMarks: 100, grade: "A" },
+        { id: uuidv4(), studentId, examId: "1", subject: "Physics", marks: 78, totalMarks: 100, grade: "B+" },
+        { id: uuidv4(), studentId, examId: "1", subject: "Chemistry", marks: 92, totalMarks: 100, grade: "A+" },
+      ];
+      await writeCol("results", results);
+
+      const announcements = [
+        { id: uuidv4(), title: "Welcome to EduFlow", content: "We are excited to have you on board! Check your classes and results here.", targetRoles: ["student", "teacher", "admin"], date: new Date().toISOString() },
+        { id: uuidv4(), title: "Summer Vacations", content: "School will remain closed from June 1st to July 31st.", targetRoles: ["student", "teacher"], date: new Date().toISOString() },
+      ];
+      await writeCol("announcements", announcements);
+
+      const attendance = [
+        { id: uuidv4(), studentId, date: "2026-04-30", status: "present" },
+        { id: uuidv4(), studentId, date: "2026-04-29", status: "present" },
+        { id: uuidv4(), studentId, date: "2026-04-28", status: "absent" },
+      ];
+      await writeCol("attendance", attendance);
+
+      await writeCol("users", users);
+      await writeCol("students", students);
       console.log("Demo student created: student@eduflow.com / student123");
     }
   } catch (err) {
@@ -89,7 +117,7 @@ async function startServer() {
   await initDb();
   
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = parseInt(process.env.PORT || "3000", 10);
 
   app.use(express.json());
 
@@ -195,6 +223,7 @@ async function startServer() {
     try {
       const students = await readCol("students");
       const users = await readCol("users");
+      const fees = await readCol("fees");
       
       if (users.find((u: any) => u.email === req.body.email)) {
         return res.status(400).json({ error: "Email already exists" });
@@ -202,11 +231,13 @@ async function startServer() {
 
       // Create actual user first
       const studentId = uuidv4();
+      const password = req.body.password && req.body.password.trim() !== "" ? req.body.password : "student123";
+      
       const studentUser = {
         id: studentId,
         name: req.body.name,
         email: req.body.email,
-        password: await bcrypt.hash(req.body.password || "student123", 10),
+        password: await bcrypt.hash(password, 10),
         role: "student",
         createdAt: new Date().toISOString()
       };
@@ -217,15 +248,27 @@ async function startServer() {
         role: "student",
         feeStatus: "pending"
       };
-      // Remove password from student profile
       delete newStudent.password;
       
       users.push(studentUser);
       students.push(newStudent);
+
+      // Create initial fee record for new student
+      const initialFee = {
+        id: uuidv4(),
+        studentId,
+        title: "Admission & First Month Fee",
+        amount: 5000,
+        date: new Date().toISOString(),
+        status: "pending"
+      };
+      fees.push(initialFee);
       
       await writeCol("users", users);
       await writeCol("students", students);
-      console.log("Student created successfully:", studentId);
+      await writeCol("fees", fees);
+      
+      console.log(`Student created: ${req.body.email} with password: ${password}`);
       res.status(201).json(newStudent);
     } catch (err: any) {
       console.error("Student creation error:", err);
@@ -390,6 +433,35 @@ async function startServer() {
       { id: '3', time: '10:30 AM', subject: 'Physics', teacher: 'Dr. Ahmad', room: 'Lab A' },
       { id: '4', time: '11:30 AM', subject: 'Chemistry', teacher: 'Ms. Fatima', room: 'Lab B' },
     ]);
+  });
+
+  // Fees
+  app.get("/api/fees", authenticate, async (req: any, res) => {
+    const fees = await readCol("fees");
+    if (req.user.role === "student") {
+      return res.json(fees.filter((f: any) => f.studentId === req.user.id));
+    }
+    res.json(fees);
+  });
+
+  app.post("/api/fees/:id/pay", authenticate, authorize(["student"]), async (req: any, res) => {
+    const fees = await readCol("fees");
+    const index = fees.findIndex((f: any) => f.id === req.params.id && f.studentId === req.user.id);
+    if (index === -1) return res.status(404).json({ error: "Fee record not found" });
+    
+    fees[index].status = "paid";
+    fees[index].paymentDate = new Date().toISOString();
+    await writeCol("fees", fees);
+    res.json(fees[index]);
+  });
+
+  // Results
+  app.get("/api/results", authenticate, async (req: any, res) => {
+    const results = await readCol("results");
+    if (req.user.role === "student") {
+      return res.json(results.filter((r: any) => r.studentId === req.user.id));
+    }
+    res.json(results);
   });
 
   // Vite middleware for development

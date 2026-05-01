@@ -4,24 +4,51 @@
  */
 
 import React from 'react';
-import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, AlertCircle, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
+import { Users, GraduationCap, DollarSign, TrendingUp, Calendar, AlertCircle, ArrowUpRight, ArrowDownRight, Clock, BookOpen, Trophy } from 'lucide-react';
 import { Card } from './ui/Card';
-import { adminService } from '../services/api';
+import { studentService, adminService, authService } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { motion } from 'motion/react';
 
 export const AdminDashboard = () => {
   const [stats, setStats] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [user, setUser] = React.useState<any>(null);
 
   React.useEffect(() => {
-    adminService.getStats().then(data => {
-      setStats(data);
-      setLoading(false);
-    });
+    const fetchDashboardData = async () => {
+      try {
+        const userData = await authService.getMe();
+        setUser(userData);
+        
+        if (userData.role === 'student') {
+          // For student, we show different stats
+          const fees = await studentService.getFees();
+          const attendance = await studentService.getAttendance();
+          const results = await studentService.getResults();
+          
+          setStats({
+            totalFees: fees.reduce((acc: number, f: any) => acc + f.amount, 0),
+            pendingFeesCount: fees.filter((f: any) => f.status === 'pending').length,
+            attendanceRate: Math.round((attendance.filter((a: any) => a.status === 'present').length / (attendance.length || 1)) * 100),
+            examsCount: results.length
+          });
+        } else {
+          // For admin/teacher, keep combined stats
+          const data = await adminService.getStats();
+          setStats(data);
+        }
+      } catch (err) {
+        console.error("Dashboard error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
   }, []);
 
-  if (loading) return (
+  if (loading || !stats) return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
       {Array(4).fill(0).map((_, i) => (
         <div key={i} className="h-32 bg-slate-100 rounded-2xl" />
@@ -31,7 +58,14 @@ export const AdminDashboard = () => {
     </div>
   );
 
-  const statCards = [
+  const isStudent = user?.role === 'student';
+
+  const statCards = isStudent ? [
+    { title: 'Attendance Rate', value: stats.attendanceRate + '%', icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50', trend: 'Monthly', up: true },
+    { title: 'Assignments', value: stats.examsCount, icon: BookOpen, color: 'text-indigo-600', bg: 'bg-indigo-50', trend: 'Pending', up: true },
+    { title: 'Pending Fees', value: stats.pendingFeesCount, icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50', trend: 'Dues', up: false },
+    { title: 'Next Exam', value: '15 May', icon: Trophy, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: 'Mid-term', up: true },
+  ] : [
     { title: 'Total Students', value: stats.totalStudents, icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12%', up: true },
     { title: 'Total Teachers', value: stats.totalTeachers, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50', trend: 'Stable', up: true },
     { title: 'Monthly Revenue', value: stats.totalIncome, icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+8.4%', up: true, prefix: 'PKR ' },

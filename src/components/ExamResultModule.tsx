@@ -6,22 +6,143 @@
 import React from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { api, studentService } from '../services/api';
-import { Trophy, FileText, Search, Filter, ChevronRight, Award, AlertCircle } from 'lucide-react';
+import { api, studentService, authService } from '../services/api';
+import { Trophy, FileText, Search, Filter, ChevronRight, Award, AlertCircle, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 export const ExamResultModule = () => {
   const [exams, setExams] = React.useState<any[]>([]);
+  const [results, setResults] = React.useState<any[]>([]);
+  const [user, setUser] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState<'overview' | 'reports'>('overview');
 
   React.useEffect(() => {
-    api.get('/exams').then(res => {
-      setExams(res.data);
-      setLoading(false);
-    });
+    const fetchData = async () => {
+      try {
+        const currentUser = await authService.getMe();
+        setUser(currentUser);
+        
+        const [examsRes, resultsRes] = await Promise.all([
+          api.get('/exams'),
+          studentService.getResults()
+        ]);
+        
+        setExams(examsRes.data);
+        setResults(resultsRes);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
+
+  if (user?.role === 'student') {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-3xl font-bold font-display text-slate-900 tracking-tight">My Academic Results</h2>
+            <p className="text-slate-500 font-medium">Detailed marksheet and performance analytics</p>
+          </div>
+          <Button variant="outline" className="rounded-xl border-slate-200 shadow-sm">
+            <FileText className="h-4 w-4 mr-2" />
+            Download Marksheet (PDF)
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <Card title="Latest Examination Results" className="p-0 overflow-hidden border-slate-200 shadow-xl shadow-slate-200/5">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Subject</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Marks</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Total</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {results.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-medium italic">No results published yet.</td>
+                      </tr>
+                    ) : (
+                      results.map((res) => (
+                        <tr key={res.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-5 font-bold text-slate-900">{res.subject}</td>
+                          <td className="px-6 py-5 text-center font-mono font-bold text-primary">{res.marks}</td>
+                          <td className="px-6 py-5 text-center font-mono text-slate-400">{res.totalMarks}</td>
+                          <td className="px-6 py-5 text-right">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-black",
+                              res.grade.startsWith('A') ? "bg-emerald-100 text-emerald-700" :
+                              res.grade.startsWith('B') ? "bg-blue-100 text-blue-700" :
+                              "bg-slate-100 text-slate-700"
+                            )}>
+                              {res.grade}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {exams.filter(e => e.status === 'upcoming').map(exam => (
+                <Card key={exam.id} className="p-6 bg-slate-900 text-white border-none shadow-xl shadow-slate-900/10">
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Upcoming Schedule</p>
+                  <h4 className="text-xl font-bold font-display mb-1">{exam.title}</h4>
+                  <p className="text-primary text-sm font-bold flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" /> {new Date(exam.startDate).toLocaleDateString()}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="p-8 bg-gradient-to-br from-primary to-indigo-600 text-white border-none shadow-2xl shadow-primary/20">
+              <Trophy className="h-12 w-12 text-white/20 mb-6" />
+              <h3 className="text-lg font-bold font-display mb-1">Academic Performance</h3>
+              <p className="text-primary-foreground/70 text-sm mb-6">Your overall grade point average for this semester.</p>
+              <div className="text-5xl font-black font-display mb-2 text-white tracking-tight">3.8</div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary-foreground/50">GPA Score (Out of 4.0)</p>
+            </Card>
+
+            <Card title="Subject Proficiency" className="p-6">
+              <div className="space-y-6 mt-6">
+                {results.map((item, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-tight">
+                      <span className="text-slate-500">{item.subject}</span>
+                      <span className="text-slate-900">{item.marks}%</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${item.marks}%` }}
+                        transition={{ duration: 1, delay: i * 0.1 }}
+                        className="h-full bg-primary rounded-full" 
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

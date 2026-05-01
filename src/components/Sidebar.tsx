@@ -23,7 +23,7 @@ export const Sidebar = ({ role, activeItem, onItemClick, onLogout, isOpen, onClo
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'teacher', 'student', 'parent'] },
     { id: 'students', label: 'Students', icon: GraduationCap, roles: ['admin', 'teacher'] },
     { id: 'teachers', label: 'Teachers', icon: Users, roles: ['admin'] },
-    { id: 'attendance', label: 'Attendance', icon: Calendar, roles: ['admin', 'teacher'] },
+    { id: 'attendance', label: 'Attendance', icon: Calendar, roles: ['admin', 'teacher', 'student'] },
     { id: 'exams', label: 'Exams & Results', icon: Trophy, roles: ['admin', 'teacher', 'student'] },
     { id: 'schedule', label: 'Timetable', icon: Clock, roles: ['admin', 'teacher', 'student'] },
     { id: 'applications', label: 'Leave Request', icon: FileText, roles: ['admin', 'teacher', 'student'] },

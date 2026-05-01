@@ -6,7 +6,7 @@
 import React from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { DollarSign, CreditCard, Clock, FileText, Plus, Download, Filter } from 'lucide-react';
+import { CheckCircle2, DollarSign, CreditCard, Clock, FileText, Plus, Download, Filter } from 'lucide-react';
 import { studentService, api, authService } from '../services/api';
 import { Student } from '../types';
 import { motion } from 'motion/react';
@@ -14,19 +14,47 @@ import { cn } from '../lib/utils';
 
 export const FeeModule = () => {
   const [students, setStudents] = React.useState<Student[]>([]);
+  const [fees, setFees] = React.useState<any[]>([]);
   const [user, setUser] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [paying, setPaying] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<'all' | 'paid' | 'pending'>('all');
 
-  React.useEffect(() => {
-    authService.getMe().then(u => {
+  const fetchData = async () => {
+    try {
+      const u = await authService.getMe();
       setUser(u);
-      studentService.getStudents().then(data => {
-        setStudents(data);
-        setLoading(false);
-      });
-    });
+      
+      if (u.role === 'student') {
+        const feeData = await studentService.getFees();
+        setFees(feeData);
+      } else {
+        const studentData = await studentService.getStudents();
+        setStudents(studentData);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchData();
   }, []);
+
+  const handlePayment = async (id: string) => {
+    setPaying(id);
+    try {
+      await studentService.payFee(id);
+      await fetchData();
+      alert('Fee paid successfully! Receipt has been generated.');
+    } catch (err) {
+      alert('Payment failed. Please try again.');
+    } finally {
+      setPaying(null);
+    }
+  };
 
   const stats = [
     { label: 'Total Expected', value: 'PKR 1,250,000', icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -39,7 +67,9 @@ export const FeeModule = () => {
     : students.filter(s => filter === 'all' || s.feeStatus === filter);
 
   if (user?.role === 'student') {
-    const myData = students.find(s => s.id === user.id);
+    const pendingFees = fees.filter(f => f.status === 'pending');
+    const totalPending = pendingFees.reduce((acc, f) => acc + f.amount, 0);
+
     return (
       <div className="space-y-8">
         <div>
@@ -52,18 +82,26 @@ export const FeeModule = () => {
             <div className="relative z-10">
               <div className="flex items-center space-x-3 text-primary mb-6">
                 <CreditCard className="h-6 w-6" />
-                <span className="text-xs font-black uppercase tracking-widest">Current Status</span>
+                <span className="text-xs font-black uppercase tracking-widest">Outstanding Balance</span>
               </div>
               <h3 className="text-4xl font-black text-slate-900 mb-2">
-                {myData?.feeStatus === 'paid' ? 'Clear' : 'PKR 15,000'}
+                {totalPending > 0 ? `PKR ${totalPending.toLocaleString()}` : 'No Dues'}
               </h3>
               <p className="text-slate-500 text-sm font-medium mb-8">
-                {myData?.feeStatus === 'paid' ? 'All dues for the current month have been successfully paid.' : 'Unpaid balance for the month of May 2026.'}
+                {totalPending > 0 
+                  ? `You have ${pendingFees.length} pending fee records for the current term.`
+                  : 'All dues for the current term have been successfully paid. Great job!'}
               </p>
               
               <div className="flex items-center space-x-4">
-                {myData?.feeStatus !== 'paid' && (
-                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20">Pay Online Now</Button>
+                {totalPending > 0 && (
+                  <Button 
+                    className="rounded-xl px-8 shadow-lg shadow-primary/20"
+                    onClick={() => handlePayment(pendingFees[0].id)}
+                    isLoading={paying === pendingFees[0].id}
+                  >
+                    Pay First Bill
+                  </Button>
                 )}
                 <Button variant="outline" className="rounded-xl border-slate-200">
                   <Download className="h-4 w-4 mr-2" />
@@ -76,29 +114,47 @@ export const FeeModule = () => {
             </div>
           </Card>
 
-          <Card title="Payment History" className="p-6">
-            <div className="space-y-4 mt-6">
-              {[
-                { month: 'April 2026', amount: '15,000', status: 'paid', date: '05 Apr, 2026' },
-                { month: 'March 2026', amount: '15,000', status: 'paid', date: '02 Mar, 2026' },
-                { month: 'February 2026', amount: '15,000', status: 'paid', date: '10 Feb, 2026' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400">
-                      <FileText className="h-5 w-5" />
+          <Card title="Payment Records" className="p-6">
+            <div className="space-y-4 mt-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {fees.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 font-medium italic">No fee history found.</div>
+              ) : (
+                fees.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors">
+                    <div className="flex items-center space-x-4">
+                      <div className={cn(
+                        "h-10 w-10 rounded-xl flex items-center justify-center border transition-colors",
+                        item.status === 'paid' ? "bg-emerald-50 border-emerald-100 text-emerald-500" : "bg-white border-slate-200 text-slate-400"
+                      )}>
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{item.title}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
+                          {new Date(item.date).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{item.month}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">{item.date}</p>
+                    <div className="text-right flex flex-col items-end">
+                      <p className="text-sm font-black text-slate-900">PKR {item.amount.toLocaleString()}</p>
+                      <div className="mt-1">
+                        {item.status === 'paid' ? (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 flex items-center">
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> Paid
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => handlePayment(item.id)}
+                            className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline cursor-pointer"
+                          >
+                            Pay Now
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-slate-900">PKR {item.amount}</p>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Receipt Ready</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </div>

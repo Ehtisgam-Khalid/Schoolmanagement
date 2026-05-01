@@ -7,7 +7,7 @@ import React from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Bell, Megaphone, Send, Calendar, User, Trash2 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, authService } from '../services/api';
 import { Announcement } from '../types';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,16 +18,27 @@ export const AnnouncementsModule = () => {
   const [newTitle, setNewTitle] = React.useState('');
   const [newContent, setNewContent] = React.useState('');
   const [isPosting, setIsPosting] = React.useState(false);
+  const [user, setUser] = React.useState<any>(null);
 
   React.useEffect(() => {
-    api.get('/announcements').then(res => {
-      setAnnouncements(res.data);
-      setLoading(false);
-    });
+    const fetchAnnouncements = async () => {
+      try {
+        const currentUser = await authService.getMe();
+        setUser(currentUser);
+        const res = await api.get('/announcements');
+        setAnnouncements(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAnnouncements();
   }, []);
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.role !== 'admin') return;
     setIsPosting(true);
     try {
       const data = {
@@ -39,6 +50,7 @@ export const AnnouncementsModule = () => {
       setAnnouncements([res.data, ...announcements]);
       setNewTitle('');
       setNewContent('');
+      alert('Announcement broadcasted successfully!');
     } catch (err) {
       alert('Failed to post announcement');
     } finally {
@@ -46,43 +58,62 @@ export const AnnouncementsModule = () => {
     }
   };
 
+  const isAdmin = user?.role === 'admin';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-1">
         <div className="sticky top-28 space-y-6">
           <div className="mb-6">
-            <h2 className="text-3xl font-bold font-display text-slate-900 tracking-tight">Announcements</h2>
-            <p className="text-slate-500 font-medium">Broadcast news and alerts to students, staff, and parents</p>
+            <h2 className="text-3xl font-bold font-display text-slate-900 tracking-tight">
+              {isAdmin ? 'Announcements' : 'Notice Board'}
+            </h2>
+            <p className="text-slate-500 font-medium">
+              {isAdmin 
+                ? 'Broadcast news and alerts to students, staff, and parents' 
+                : 'Stay updated with the latest news and bulletins from the school management'}
+            </p>
           </div>
 
-          <Card title="New Broadcast" className="border-slate-200 shadow-xl shadow-slate-200/20 bg-white">
-            <form onSubmit={handlePost} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Headline</label>
-                <input 
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  placeholder="e.g. School Spring Break Dates"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-sans"
-                  required
-                />
+          {isAdmin ? (
+            <Card title="New Broadcast" className="border-slate-200 shadow-xl shadow-slate-200/20 bg-white">
+              <form onSubmit={handlePost} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Headline</label>
+                  <input 
+                    value={newTitle}
+                    onChange={e => setNewTitle(e.target.value)}
+                    placeholder="e.g. School Spring Break Dates"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-sans"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Message Content</label>
+                  <textarea 
+                    value={newContent}
+                    onChange={e => setNewContent(e.target.value)}
+                    placeholder="Type your message here..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-sans min-h-[140px]"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20" isLoading={isPosting}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Publish Announcement
+                </Button>
+              </form>
+            </Card>
+          ) : (
+            <Card className="p-6 bg-slate-900 border-none relative overflow-hidden group">
+              <div className="relative z-10">
+                <Bell className="h-8 w-8 text-primary mb-4 animate-bounce" />
+                <h3 className="text-white text-lg font-bold font-display">Notifications</h3>
+                <p className="text-slate-400 text-sm mt-1">Please read all announcements carefully to stay informed about events and deadlines.</p>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Message Content</label>
-                <textarea 
-                  value={newContent}
-                  onChange={e => setNewContent(e.target.value)}
-                  placeholder="Type your message here..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-sans min-h-[140px]"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20" isLoading={isPosting}>
-                <Send className="h-4 w-4 mr-2" />
-                Publish Announcement
-              </Button>
-            </form>
-          </Card>
+              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors" />
+            </Card>
+          )}
         </div>
       </div>
 
@@ -137,9 +168,11 @@ export const AnnouncementsModule = () => {
                       </div>
                     </div>
                     
-                    <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-rose-50 text-rose-400 rounded-xl">
-                      <Trash2 className="h-5 w-5" />
-                    </button>
+                    {isAdmin && (
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-rose-50 text-rose-400 rounded-xl">
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
                   </div>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
                 </Card>

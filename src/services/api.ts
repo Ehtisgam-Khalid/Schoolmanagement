@@ -62,6 +62,26 @@ export const studentService = {
     const { data } = await api.get('/students');
     return data;
   },
+  getFees: async () => {
+    const { data } = await api.get('/fees');
+    return data;
+  },
+  payFee: async (id: string) => {
+    const { data } = await api.post(`/fees/${id}/pay`);
+    return data;
+  },
+  getResults: async () => {
+    const { data } = await api.get('/results');
+    return data;
+  },
+  getAttendance: async () => {
+    const { data } = await api.get('/attendance');
+    return data;
+  },
+  getSchedule: async () => {
+    const { data } = await api.get('/schedule');
+    return data;
+  },
 };
 
 export const teacherService = {
