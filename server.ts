@@ -151,7 +151,7 @@ async function startServer() {
       await writeCol("users", users);
       await writeCol("students", students);
 
-      const token = jwt.sign({ id: userId, role: "student" }, JWT_SECRET);
+      const token = jwt.sign({ id: userId, name: name, role: "student" }, JWT_SECRET);
       res.status(201).json({ token, user: newStudent });
     } catch (err) {
       res.status(500).json({ error: "Registration failed" });
@@ -165,7 +165,7 @@ async function startServer() {
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
     const { password: _, ...userWithoutPassword } = user;
     res.json({ token, user: userWithoutPassword });
   });
@@ -280,6 +280,14 @@ async function startServer() {
   });
 
   // Attendance
+  app.get("/api/attendance", authenticate, async (req: any, res) => {
+    const attendance = await readCol("attendance");
+    if (req.user.role === "student") {
+      return res.json(attendance.filter((a: any) => a.studentId === req.user.id));
+    }
+    res.json(attendance);
+  });
+
   app.get("/api/attendance/:class", authenticate, async (req, res) => {
     const attendance = await readCol("attendance");
     // In a real app we'd join with students, for now just filter by student class if provided
