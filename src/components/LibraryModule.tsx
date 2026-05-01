@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Search, Plus, Filter, LayoutGrid, List as ListIcon, CheckCircle2, Clock } from 'lucide-react';
+import { BookOpen, Search, Plus, Filter, LayoutGrid, List as ListIcon, CheckCircle2, Clock, X } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { motion } from 'motion/react';
@@ -9,13 +9,37 @@ export const LibraryModule = ({ user }: { user: any }) => {
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [isAdding, setIsAdding] = useState(false);
+  const [newBook, setNewBook] = useState({ title: '', author: '', isbn: '' });
 
-  useEffect(() => {
+  const fetchBooks = () => {
     adminService.getLibrary().then(data => {
-      setBooks(data);
+      setBooks(Array.isArray(data) ? data : []);
+      setLoading(false);
+    }).catch(() => {
+      setBooks([]);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchBooks();
   }, []);
+
+  const handleAddBook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await adminService.addBook(newBook);
+    setIsAdding(false);
+    setNewBook({ title: '', author: '', isbn: '' });
+    fetchBooks();
+  };
+
+  const handleDeleteBook = async (id: string) => {
+    if (confirm('Verify: Delete manuscript from repository?')) {
+      await adminService.deleteBook(id);
+      fetchBooks();
+    }
+  };
 
   const stats = [
     { label: 'Total Books', value: books.length, color: 'text-blue-500', bg: 'bg-blue-500/10' },
@@ -31,12 +55,68 @@ export const LibraryModule = ({ user }: { user: any }) => {
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Registry of Academic Manuscripts</p>
         </div>
         {user.role === 'admin' && (
-          <Button className="rounded-2xl px-6 py-6 shadow-lg shadow-primary/20 bg-primary group">
+          <Button 
+            className="rounded-2xl px-6 py-6 shadow-lg shadow-primary/20 bg-primary group"
+            onClick={() => setIsAdding(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             REGISTER NEW ASSET
           </Button>
         )}
       </div>
+
+      {isAdding && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="p-8 border-b border-slate-100 bg-slate-50">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Register Manuscript</h3>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Cataloging Protocol v2.1</p>
+            </div>
+            <form onSubmit={handleAddBook} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Asset Title</label>
+                <input 
+                  required
+                  value={newBook.title}
+                  onChange={e => setNewBook({...newBook, title: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                  placeholder="E.G. QUANTUM PHYSICS VOL 1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Author / Source</label>
+                  <input 
+                    required
+                    value={newBook.author}
+                    onChange={e => setNewBook({...newBook, author: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="NAME"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Registry (ISBN)</label>
+                  <input 
+                    required
+                    value={newBook.isbn}
+                    onChange={e => setNewBook({...newBook, isbn: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="978-X-XX..."
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1 rounded-2xl py-6 border-slate-200" onClick={() => setIsAdding(false)}>
+                  ABORT
+                </Button>
+                <Button type="submit" className="flex-1 rounded-2xl py-6 bg-primary shadow-lg shadow-primary/20">
+                  EXECUTE ENTRY
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {stats.map((stat, i) => (
@@ -109,7 +189,7 @@ export const LibraryModule = ({ user }: { user: any }) => {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-primary transition-colors truncate">{book.title}</h4>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{book.author} &bull; {book.isbn}</p>
-                    <div className="flex items-center mt-3">
+                    <div className="flex items-center justify-between mt-3">
                       {book.status === 'available' ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
                           <CheckCircle2 className="h-3 w-3 mr-1.5" />
@@ -120,6 +200,15 @@ export const LibraryModule = ({ user }: { user: any }) => {
                           <Clock className="h-3 w-3 mr-1.5" />
                           Delegated
                         </span>
+                      )}
+                      
+                      {user.role === 'admin' && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteBook(book.id); }}
+                          className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       )}
                     </div>
                   </div>

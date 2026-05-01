@@ -82,10 +82,24 @@ export const adminService = {
   // New Methods
   getLibrary: () => api.get('/library').then(res => res.data),
   addBook: (book: any) => api.post('/library', book).then(res => res.data),
+  updateBook: (id: string, book: any) => api.put(`/library/${id}`, book).then(res => res.data),
+  deleteBook: (id: string) => api.delete(`/library/${id}`).then(res => res.data),
+  
   getTransport: () => api.get('/transport').then(res => res.data),
+  addTransport: (route: any) => api.post('/transport', route).then(res => res.data),
+  deleteTransport: (id: string) => api.delete('/transport/' + id).then(res => res.data),
+  
   getDormitory: () => api.get('/dormitory').then(res => res.data),
+  addDormitory: (dorm: any) => api.post('/dormitory', dorm).then(res => res.data),
+  
   getExams: () => api.get('/exams').then(res => res.data),
   addExam: (exam: any) => api.post('/exams', exam).then(res => res.data),
+  postExamResults: (examId: string, results: any[]) => api.post(`/exams/${examId}/results`, results).then(res => res.data),
+  getExamResults: () => api.get('/exams/results').then(res => res.data),
+
+  getMaterials: () => api.get('/materials').then(res => res.data),
+  addMaterial: (material: any) => api.post('/materials', material).then(res => res.data),
+  deleteMaterial: (id: string) => api.delete(`/materials/${id}`).then(res => res.data),
 };
 
 export const studentService = {

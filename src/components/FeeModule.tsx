@@ -312,6 +312,29 @@ export const FeeModule = () => {
     }
   };
 
+  const handleBulkGenerate = async (targetClass: string, amount: string, title: string) => {
+    setLoading(true);
+    try {
+      // In a real system, this would be one API call, but we iterate for simplicity with the current backend
+      const classStudents = students.filter(s => s.class === targetClass);
+      for (const student of classStudents) {
+        await adminService.addExtraCharge({
+          targetType: 'individual',
+          studentId: student.id,
+          amount,
+          title,
+          dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        });
+      }
+      alert(`Successfully generated ${classStudents.length} invoices for Class ${targetClass}`);
+      fetchData();
+    } catch (err) {
+      alert('Bulk generation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const stats = [
     { label: 'Total Expected', value: `PKR ${fees.reduce((acc, f) => acc + f.amount, 0).toLocaleString()}`, icon: DollarSign, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Total Received', value: `PKR ${fees.filter(f => f.status === 'paid').reduce((acc, f) => acc + f.amount, 0).toLocaleString()}`, icon: CreditCard, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -484,6 +507,18 @@ export const FeeModule = () => {
           <p className="text-slate-500 font-medium">Monitor fee collections and approve payment submissions</p>
         </div>
         <div className="flex items-center space-x-3">
+          <Button 
+            variant="outline" 
+            className="rounded-xl h-11 px-6 border-slate-200"
+            onClick={() => {
+              const cls = prompt('Target Class?');
+              const amt = prompt('Amount (PKR)?');
+              const title = prompt('Cycle (e.g. May Tuition)?');
+              if (cls && amt && title) handleBulkGenerate(cls, amt, title);
+            }}
+          >
+            <Printer className="h-4 w-4 mr-2" /> Bulk Generate
+          </Button>
           <Button variant="outline" className="rounded-xl h-11 px-6 border-slate-200">
             <Download className="h-4 w-4 mr-2" /> Report
           </Button>

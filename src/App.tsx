@@ -20,6 +20,7 @@ import { LibraryModule } from './components/LibraryModule';
 import { ExamModule } from './components/ExamModule';
 import { TransportModule } from './components/TransportModule';
 import { DormitoryModule } from './components/DormitoryModule';
+import { StudyMaterialModule } from './components/StudyMaterialModule';
 import { authService } from './services/api';
 import { User } from './types';
 import { GraduationCap, Bell, Search, Settings, Menu } from 'lucide-react';
@@ -116,13 +117,7 @@ export default function App() {
       case 'dormitory':
         return <DormitoryModule user={user} />;
       case 'material':
-        return (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border border-dashed border-slate-200">
-            <div className="h-20 w-20 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-500 mb-6 font-display text-4xl">📚</div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Study Material Depot</h2>
-            <p className="text-slate-500 mt-2 font-bold uppercase tracking-widest text-xs">Repository synchronization in progress...</p>
-          </div>
-        );
+        return <StudyMaterialModule user={user} />;
       case 'fees':
         return <FeeModule />;
       case 'announcements':

@@ -13,7 +13,7 @@ const DATA_DIR = path.join(process.cwd(), "data");
 async function initDb() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    const collections = ["users", "students", "teachers", "attendance", "fees", "exams", "results", "announcements", "applications", "schedule"];
+    const collections = ["users", "students", "teachers", "attendance", "fees", "exams", "results", "announcements", "applications", "schedule", "books", "transport", "dormitory", "exam_results", "materials"];
     for (const col of collections) {
       const filePath = path.join(DATA_DIR, `${col}.json`);
       try {
@@ -105,8 +105,12 @@ async function initDb() {
 }
 
 async function readCol(name: string) {
-  const data = await fs.readFile(path.join(DATA_DIR, `${name}.json`), "utf8");
-  return JSON.parse(data);
+  try {
+    const data = await fs.readFile(path.join(DATA_DIR, `${name}.json`), "utf8");
+    return JSON.parse(data);
+  } catch (err) {
+    return [];
+  }
 }
 
 async function writeCol(name: string, data: any) {
@@ -399,42 +403,133 @@ async function startServer() {
     res.json({ message: "Deleted successfully" });
   });
 
-  // Library
+  // Library Management
   app.get("/api/library", authenticate, async (req, res) => {
     const books = await readCol("books");
     res.json(books);
   });
   app.post("/api/library", authenticate, authorize(["admin"]), async (req, res) => {
     const books = await readCol("books");
-    const newBook = { ...req.body, id: uuidv4(), status: 'available' };
+    const newBook = { ...req.body, id: uuidv4(), status: 'available', createdAt: new Date().toISOString() };
     books.push(newBook);
     await writeCol("books", books);
     res.json(newBook);
   });
+  app.put("/api/library/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let books = await readCol("books");
+    const idx = books.findIndex((b: any) => b.id === req.params.id);
+    if (idx > -1) {
+      books[idx] = { ...books[idx], ...req.body };
+      await writeCol("books", books);
+      res.json(books[idx]);
+    } else res.status(404).json({ error: "Not found" });
+  });
+  app.delete("/api/library/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let books = await readCol("books");
+    books = books.filter((b: any) => b.id !== req.params.id);
+    await writeCol("books", books);
+    res.json({ success: true });
+  });
 
-  // Transport
+  // Transport Management
   app.get("/api/transport", authenticate, async (req, res) => {
     const transport = await readCol("transport");
     res.json(transport);
   });
+  app.post("/api/transport", authenticate, authorize(["admin"]), async (req, res) => {
+    const transport = await readCol("transport");
+    const newRoute = { ...req.body, id: uuidv4() };
+    transport.push(newRoute);
+    await writeCol("transport", transport);
+    res.json(newRoute);
+  });
+  app.delete("/api/transport/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let transport = await readCol("transport");
+    transport = transport.filter((t: any) => t.id !== req.params.id);
+    await writeCol("transport", transport);
+    res.json({ success: true });
+  });
 
-  // Dormitory
+  // Dormitory Management
   app.get("/api/dormitory", authenticate, async (req, res) => {
     const dorms = await readCol("dormitory");
     res.json(dorms);
   });
+  app.post("/api/dormitory", authenticate, authorize(["admin"]), async (req, res) => {
+    const dorms = await readCol("dormitory");
+    const newDorm = { ...req.body, id: uuidv4() };
+    dorms.push(newDorm);
+    await writeCol("dormitory", dorms);
+    res.json(newDorm);
+  });
+  app.delete("/api/dormitory/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let dorms = await readCol("dormitory");
+    dorms = dorms.filter((d: any) => d.id !== req.params.id);
+    await writeCol("dormitory", dorms);
+    res.json({ success: true });
+  });
 
-  // Exams
+  // Exams & Results
   app.get("/api/exams", authenticate, async (req, res) => {
     const exams = await readCol("exams");
     res.json(exams);
   });
-  app.post("/api/exams", authenticate, authorize(["admin"]), async (req, res) => {
+  app.post("/api/exams", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
     const exams = await readCol("exams");
-    const newExam = { ...req.body, id: uuidv4() };
+    const newExam = { ...req.body, id: uuidv4(), status: 'pending' };
     exams.push(newExam);
     await writeCol("exams", exams);
     res.json(newExam);
+  });
+  app.delete("/api/exams/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let exams = await readCol("exams");
+    exams = exams.filter((e: any) => e.id !== req.params.id);
+    await writeCol("exams", exams);
+    res.json({ success: true });
+  });
+  app.post("/api/exams/:id/results", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
+    const results = await readCol("exam_results");
+    const newResults = req.body; // Array of { studentId, marks, grade }
+    const entry = { examId: req.params.id, data: newResults, updatedAt: new Date().toISOString() };
+    results.push(entry);
+    await writeCol("exam_results", results);
+    res.json(entry);
+  });
+  app.get("/api/exams/results", authenticate, async (req:any, res) => {
+    const results = await readCol("exam_results");
+    if (req.user.role === 'student') {
+      // Filter results where student appears in the data array
+      const myResults = results.map((r:any) => ({
+        ...r,
+        record: r.data.find((d:any) => d.studentId === req.user.id)
+      })).filter((r:any) => r.record);
+      return res.json(myResults);
+    }
+    res.json(results);
+  });
+
+  // Study Material
+  app.get("/api/materials", authenticate, async (req:any, res) => {
+    const materials = await readCol("materials");
+    if (req.user.role === 'student') {
+      const students = await readCol("students");
+      const me = students.find((s:any) => s.id === req.user.id);
+      return res.json(materials.filter((m:any) => m.class === me?.class));
+    }
+    res.json(materials);
+  });
+  app.post("/api/materials", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
+    const materials = await readCol("materials");
+    const newMat = { ...req.body, id: uuidv4(), createdAt: new Date().toISOString() };
+    materials.push(newMat);
+    await writeCol("materials", materials);
+    res.json(newMat);
+  });
+  app.delete("/api/materials/:id", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
+    let materials = await readCol("materials");
+    materials = materials.filter((m: any) => m.id !== req.params.id);
+    await writeCol("materials", materials);
+    res.json({ success: true });
   });
 
   // Stats for Admin Dashboard

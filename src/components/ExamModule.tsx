@@ -1,20 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Search, Plus, Filter, FileText, CheckSquare, Award, Clock } from 'lucide-react';
+import { Trophy, Search, Plus, Filter, FileText, CheckSquare, Award, Clock, Trash2, Calendar, ChevronRight } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { motion } from 'motion/react';
-import { adminService } from '../services/api';
+import { adminService, api } from '../services/api';
 
 export const ExamModule = ({ user }: { user: any }) => {
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newExam, setNewExam] = useState({ title: '', subject: '', class: '', date: '' });
 
-  useEffect(() => {
+  const fetchExams = () => {
     adminService.getExams().then(data => {
-      setExams(data);
+      setExams(Array.isArray(data) ? data : []);
+      setLoading(false);
+    }).catch(() => {
+      setExams([]);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchExams();
   }, []);
+
+  const handleAddExam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await adminService.addExam(newExam);
+    setIsAdding(false);
+    setNewExam({ title: '', subject: '', class: '', date: '' });
+    fetchExams();
+  };
+
+  const handleDeleteExam = async (id: string) => {
+    if (confirm('Verify: Cancel and remove examination?')) {
+      // Reusing a generic delete if I didn't add the specific endpoint, but I'll add one to server.ts too
+      await api.delete(`/exams/${id}`);
+      fetchExams();
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -24,12 +49,78 @@ export const ExamModule = ({ user }: { user: any }) => {
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Academic Performance & Examination System</p>
         </div>
         {user.role === 'admin' && (
-          <Button className="rounded-2xl px-6 py-6 shadow-lg shadow-primary/20 bg-primary group">
+          <Button 
+            className="rounded-2xl px-6 py-6 shadow-lg shadow-primary/20 bg-primary group"
+            onClick={() => setIsAdding(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             SCHEDULE EVALUATION
           </Button>
         )}
       </div>
+
+      {isAdding && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="p-8 border-b border-slate-100 bg-slate-50">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Schedule Assessment</h3>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Evaluation Protocol v4.0</p>
+            </div>
+            <form onSubmit={handleAddExam} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Evaluation Descriptor</label>
+                <input 
+                  required
+                  value={newExam.title}
+                  onChange={e => setNewExam({...newExam, title: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                  placeholder="E.G. FIRST TERM FINALS"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subject Node</label>
+                  <input 
+                    required
+                    value={newExam.subject}
+                    onChange={e => setNewExam({...newExam, subject: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="MATHEMATICS"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Target Class</label>
+                  <input 
+                    required
+                    value={newExam.class}
+                    onChange={e => setNewExam({...newExam, class: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Temporal Window (Date)</label>
+                <input 
+                  required
+                  type="date"
+                  value={newExam.date}
+                  onChange={e => setNewExam({...newExam, date: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+              <div className="flex space-x-4 pt-4">
+                <Button type="button" variant="outline" className="flex-1 rounded-2xl py-6 border-slate-200" onClick={() => setIsAdding(false)}>
+                  ABORT
+                </Button>
+                <Button type="submit" className="flex-1 rounded-2xl py-6 bg-primary shadow-lg shadow-primary/20">
+                  EXECUTE SCHEDULE
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-6">
@@ -41,7 +132,8 @@ export const ExamModule = ({ user }: { user: any }) => {
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Protocol ID</th>
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descriptor</th>
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Temporal Window</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -60,10 +152,20 @@ export const ExamModule = ({ user }: { user: any }) => {
                           {new Date(exam.date).toLocaleDateString()}
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-right">
+                      <td className="px-6 py-5">
                         <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 text-[10px] font-black uppercase tracking-widest">
                           Pending
                         </span>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        {user.role === 'admin' && (
+                          <button 
+                            onClick={() => handleDeleteExam(exam.id)}
+                            className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )) : (
