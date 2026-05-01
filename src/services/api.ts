@@ -55,6 +55,10 @@ export const adminService = {
     const { data } = await api.post('/teachers', teacherData);
     return data;
   },
+  approveFee: async (id: string) => {
+    const { data } = await api.patch(`/fees/${id}/approve`);
+    return data;
+  },
 };
 
 export const studentService = {
@@ -66,8 +70,8 @@ export const studentService = {
     const { data } = await api.get('/fees');
     return data;
   },
-  payFee: async (id: string) => {
-    const { data } = await api.post(`/fees/${id}/pay`);
+  payFee: async (id: string, proofData?: any) => {
+    const { data } = await api.post(`/fees/${id}/pay`, proofData);
     return data;
   },
   getResults: async () => {

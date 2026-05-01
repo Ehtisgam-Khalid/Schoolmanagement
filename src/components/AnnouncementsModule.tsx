@@ -27,6 +27,9 @@ export const AnnouncementsModule = () => {
         setUser(currentUser);
         const res = await api.get('/announcements');
         setAnnouncements(res.data);
+        if (res.data.length > 0) {
+          localStorage.setItem(`last_seen_announcement_${currentUser.role}`, res.data[0].id);
+        }
       } catch (err) {
         console.error(err);
       } finally {

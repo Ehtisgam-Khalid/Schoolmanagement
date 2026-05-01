@@ -19,10 +19,16 @@ export const AddStudentForm = ({ onSuccess, onCancel }: AddStudentFormProps) => 
   const [loading, setLoading] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: '',
-    email: '',
-    password: '',
+    lastName: '',
+    fatherName: '',
+    dob: '',
     class: '',
     section: '',
+    bFormNumber: '',
+    admissionFees: '5000',
+    monthlyFees: '2000',
+    email: '',
+    password: '',
     rollNumber: '',
     parentContact: '',
     cnic: '',
@@ -86,10 +92,29 @@ export const AddStudentForm = ({ onSuccess, onCancel }: AddStudentFormProps) => 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input 
-              label="FullName" 
+              label="First Name" 
               required 
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+            <Input 
+              label="Last Name" 
+              required 
+              value={formData.lastName}
+              onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+            />
+            <Input 
+              label="Father's Name" 
+              required 
+              value={formData.fatherName}
+              onChange={(e) => setFormData({...formData, fatherName: e.target.value})}
+            />
+            <Input 
+              label="Date of Birth" 
+              type="date"
+              required 
+              value={formData.dob}
+              onChange={(e) => setFormData({...formData, dob: e.target.value})}
             />
             <Input 
               label="Class" 
@@ -105,10 +130,31 @@ export const AddStudentForm = ({ onSuccess, onCancel }: AddStudentFormProps) => 
               onChange={(e) => setFormData({...formData, section: e.target.value})}
             />
             <Input 
+              label="B-Form Number" 
+              required 
+              placeholder="e.g. 42101-1234567-1"
+              value={formData.bFormNumber}
+              onChange={(e) => setFormData({...formData, bFormNumber: e.target.value})}
+            />
+            <Input 
               label="Roll Number" 
               required 
               value={formData.rollNumber}
               onChange={(e) => setFormData({...formData, rollNumber: e.target.value})}
+            />
+            <Input 
+              label="Admission Fees (PKR)" 
+              type="number"
+              required 
+              value={formData.admissionFees}
+              onChange={(e) => setFormData({...formData, admissionFees: e.target.value})}
+            />
+            <Input 
+              label="Monthly Fees (PKR)" 
+              type="number"
+              required 
+              value={formData.monthlyFees}
+              onChange={(e) => setFormData({...formData, monthlyFees: e.target.value})}
             />
             <Input 
               label="Parent Contact" 

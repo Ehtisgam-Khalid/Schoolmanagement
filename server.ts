@@ -235,7 +235,7 @@ async function startServer() {
       
       const studentUser = {
         id: studentId,
-        name: req.body.name,
+        name: `${req.body.name} ${req.body.lastName || ""}`.trim(),
         email: req.body.email,
         password: await bcrypt.hash(password, 10),
         role: "student",
@@ -245,6 +245,7 @@ async function startServer() {
       const newStudent = {
         ...req.body,
         id: studentId,
+        name: `${req.body.name} ${req.body.lastName || ""}`.trim(),
         role: "student",
         feeStatus: "pending"
       };
@@ -253,16 +254,26 @@ async function startServer() {
       users.push(studentUser);
       students.push(newStudent);
 
-      // Create initial fee record for new student
-      const initialFee = {
-        id: uuidv4(),
-        studentId,
-        title: "Admission & First Month Fee",
-        amount: 5000,
-        date: new Date().toISOString(),
-        status: "pending"
-      };
-      fees.push(initialFee);
+      // Create initial fee records for new student
+      const initialFees = [
+        {
+          id: uuidv4(),
+          studentId,
+          title: "Admission Fee",
+          amount: parseInt(req.body.admissionFees || "5000"),
+          date: new Date().toISOString(),
+          status: "pending"
+        },
+        {
+          id: uuidv4(),
+          studentId,
+          title: `Monthly Fee - ${new Date().toLocaleString('default', { month: 'long' })}`,
+          amount: parseInt(req.body.monthlyFees || "2000"),
+          date: new Date().toISOString(),
+          status: "pending"
+        }
+      ];
+      fees.push(...initialFees);
       
       await writeCol("users", users);
       await writeCol("students", students);
@@ -449,9 +460,31 @@ async function startServer() {
     const index = fees.findIndex((f: any) => f.id === req.params.id && f.studentId === req.user.id);
     if (index === -1) return res.status(404).json({ error: "Fee record not found" });
     
-    fees[index].status = "paid";
-    fees[index].paymentDate = new Date().toISOString();
+    fees[index].status = "submitted"; // Changed to submitted for admin approval
+    fees[index].submissionDate = new Date().toISOString();
+    fees[index].screenshot = req.body.screenshot || "placeholder_screenshot_url";
     await writeCol("fees", fees);
+    res.json(fees[index]);
+  });
+
+  app.patch("/api/fees/:id/approve", authenticate, authorize(["admin"]), async (req: any, res) => {
+    const fees = await readCol("fees");
+    const index = fees.findIndex((f: any) => f.id === req.params.id);
+    if (index === -1) return res.status(404).json({ error: "Fee record not found" });
+    
+    fees[index].status = "paid";
+    fees[index].approvalDate = new Date().toISOString();
+    await writeCol("fees", fees);
+    
+    // Also update student profile status if needed
+    const students = await readCol("students");
+    const sIndex = students.findIndex((s: any) => s.id === fees[index].studentId);
+    if (sIndex !== -1) {
+      const pendingFees = fees.filter((f: any) => f.studentId === students[sIndex].id && f.status !== "paid");
+      students[sIndex].feeStatus = pendingFees.length > 0 ? "pending" : "paid";
+      await writeCol("students", students);
+    }
+    
     res.json(fees[index]);
   });
 

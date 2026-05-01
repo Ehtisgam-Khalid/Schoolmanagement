@@ -26,6 +26,22 @@ export default function App() {
   const [loading, setLoading] = React.useState(true);
   const [activeTab, setActiveTab] = React.useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [notificationCount, setNotificationCount] = React.useState(0);
+
+  const checkAnnouncements = async (role: string) => {
+    try {
+      const response = await fetch('/api/announcements', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('edu_flow_token')}` }
+      });
+      const data = await response.json();
+      const lastSeenId = localStorage.getItem(`last_seen_announcement_${role}`);
+      if (data.length > 0 && data[0].id !== lastSeenId) {
+        setNotificationCount(1);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   React.useEffect(() => {
     const initAuth = async () => {
@@ -34,6 +50,7 @@ export default function App() {
         try {
           const userData = await authService.getMe();
           setUser(userData);
+          checkAnnouncements(userData.role);
         } catch (err) {
           localStorage.removeItem('edu_flow_token');
         }
@@ -42,6 +59,15 @@ export default function App() {
     };
     initAuth();
   }, []);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'announcements') {
+      setNotificationCount(0);
+      // Store the latest announcement ID if we had data, or just clear the count
+      // Ideally we'd fetch them here to get the ID, but for a simple "1", this works.
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -105,7 +131,7 @@ export default function App() {
       <Sidebar 
         role={user.role} 
         activeItem={activeTab} 
-        onItemClick={setActiveTab} 
+        onItemClick={handleTabChange} 
         onLogout={handleLogout} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -142,9 +168,16 @@ export default function App() {
               />
             </div>
             
-            <button className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors relative">
+            <button 
+              onClick={() => handleTabChange('announcements')}
+              className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors relative"
+            >
               <Bell className="h-5 w-5 text-slate-600" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white" />
+              {notificationCount > 0 && (
+                <span className="absolute top-2 right-2.5 h-4 w-4 bg-red-500 rounded-full border-2 border-white text-[10px] text-white flex items-center justify-center font-bold">
+                  {notificationCount}
+                </span>
+              )}
             </button>
 
             <button className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
