@@ -17,6 +17,17 @@ const EditStudentModal = ({ student, onClose, onSuccess }: { student: Student, o
   const [loading, setLoading] = React.useState(false);
   const [formData, setFormData] = React.useState({ ...student });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, profilePic: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -44,6 +55,26 @@ const EditStudentModal = ({ student, onClose, onSuccess }: { student: Student, o
           <Input label="Section" value={formData.section} onChange={e => setFormData({...formData, section: e.target.value})} />
           <Input label="Monthly Fee (PKR)" type="number" value={formData.monthlyFees || ''} onChange={e => setFormData({...formData, monthlyFees: e.target.value})} />
           <Input label="Admission Fee (PKR)" type="number" value={formData.admissionFees || ''} onChange={e => setFormData({...formData, admissionFees: e.target.value})} />
+          <Input label="Address" className="col-span-full" value={formData.address || ''} onChange={e => setFormData({...formData, address: e.target.value})} />
+          
+          <div className="col-span-full space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Profile Photo</label>
+            <div className="flex items-center space-x-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="h-16 w-16 rounded-2xl bg-white border-2 border-primary/10 overflow-hidden flex items-center justify-center">
+                {formData.profilePic ? (
+                  <img src={formData.profilePic} className="h-full w-full object-cover" alt="Profile" />
+                ) : (
+                  <GraduationCap className="h-8 w-8 text-slate-300" />
+                )}
+              </div>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={handleFileChange}
+                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+              />
+            </div>
+          </div>
           
           <div className="col-span-full pt-6 flex justify-end space-x-3 border-t">
             <Button variant="outline" onClick={onClose} type="button">Cancel</Button>
@@ -163,8 +194,12 @@ export const StudentList = () => {
                   <tr key={student.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="flex items-center space-x-4">
-                        <div className="h-11 w-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-sm">
-                          <GraduationCap className="h-5 w-5" />
+                        <div className="h-11 w-11 rounded-xl border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center shadow-sm">
+                          {student.profilePic ? (
+                            <img src={student.profilePic} className="h-full w-full object-cover" alt={student.name} />
+                          ) : (
+                            <GraduationCap className="h-5 w-5 text-blue-400" />
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-black text-slate-900 tracking-tight">{student.name}</p>

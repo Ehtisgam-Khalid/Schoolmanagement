@@ -71,6 +71,14 @@ export const adminService = {
     const { data } = await api.delete(`/students/${id}`);
     return data;
   },
+  getAttendance: async () => {
+    const { data } = await api.get('/attendance');
+    return data;
+  },
+  markAttendance: async (records: any[]) => {
+    const { data } = await api.post('/attendance', records);
+    return data;
+  },
 };
 
 export const studentService = {

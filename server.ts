@@ -247,7 +247,9 @@ async function startServer() {
         id: studentId,
         name: `${req.body.name} ${req.body.lastName || ""}`.trim(),
         role: "student",
-        feeStatus: "pending"
+        feeStatus: "pending",
+        address: req.body.address || "",
+        profilePic: req.body.profilePic || null
       };
       delete newStudent.password;
       
@@ -350,7 +352,22 @@ async function startServer() {
 
   app.post("/api/attendance", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
     const attendance = await readCol("attendance");
-    const newRecords = req.body.map((rec: any) => ({
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Filter out records where student already has attendance for today
+    const recordsToMark = req.body.filter((rec: any) => {
+      const alreadyMarked = attendance.some((a: any) => 
+        a.studentId === rec.studentId && 
+        a.date.startsWith(today)
+      );
+      return !alreadyMarked;
+    });
+
+    if (recordsToMark.length === 0 && req.body.length > 0) {
+      return res.status(400).json({ error: "Attendance already marked for today" });
+    }
+
+    const newRecords = recordsToMark.map((rec: any) => ({
       ...rec,
       id: uuidv4(),
       date: new Date().toISOString()

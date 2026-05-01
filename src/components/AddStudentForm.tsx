@@ -32,8 +32,21 @@ export const AddStudentForm = ({ onSuccess, onCancel }: AddStudentFormProps) => 
     rollNumber: '',
     parentContact: '',
     cnic: '',
+    address: '',
+    profilePic: null as string | null,
     feeStatus: 'pending' as const
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, profilePic: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +121,26 @@ export const AddStudentForm = ({ onSuccess, onCancel }: AddStudentFormProps) => 
               required 
               value={formData.fatherName}
               onChange={(e) => setFormData({...formData, fatherName: e.target.value})}
+            />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Profile Photo</label>
+              <div className="flex items-center space-x-3">
+                {formData.profilePic && (
+                  <img src={formData.profilePic} className="h-12 w-12 rounded-xl object-cover border-2 border-primary/20" alt="Preview" />
+                )}
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                />
+              </div>
+            </div>
+            <Input 
+              label="Home Address" 
+              required 
+              value={formData.address}
+              onChange={(e) => setFormData({...formData, address: e.target.value})}
             />
             <Input 
               label="Date of Birth" 

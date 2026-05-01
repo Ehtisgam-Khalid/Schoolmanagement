@@ -7,8 +7,8 @@ import React from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { CheckCircle2, XCircle, Clock, Save, Search, Filter } from 'lucide-react';
-import { studentService, api, authService } from '../services/api';
-import { Student, Attendance } from '../types';
+import { studentService, api, authService, adminService } from '../services/api';
+import { Student } from '../types';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 
@@ -19,63 +19,93 @@ export const AttendanceModule = () => {
   const [history, setHistory] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [selectedClass, setSelectedClass] = React.useState('10-A');
+  const [selectedClass, setSelectedClass] = React.useState('All');
   const [search, setSearch] = React.useState('');
 
-  React.useEffect(() => {
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const fetchData = async () => {
     setLoading(true);
-    authService.getMe().then(u => {
+    try {
+      const u = await authService.getMe();
       setUser(u);
+
       if (u.role === 'student') {
-        api.get('/attendance').then(res => {
-          if (Array.isArray(res.data)) {
-            setHistory(res.data.filter((r: any) => r.studentId === u.id));
-          } else {
-            setHistory([]);
-          }
-          setLoading(false);
-        }).catch(() => {
-          setHistory([]);
-          setLoading(false);
-        });
+        const res = await api.get('/attendance');
+        if (Array.isArray(res.data)) {
+          setHistory(res.data.filter((r: any) => r.studentId === u.id));
+        }
       } else {
-        studentService.getStudents().then(data => {
-          if (Array.isArray(data)) {
-            setStudents(data);
-            const initial: Record<string, 'present' | 'absent' | 'late'> = {};
-            data.forEach((s: Student) => initial[s.id] = 'present');
-            setAttendance(initial);
+        const [sData, aData] = await Promise.all([
+          studentService.getStudents(),
+          adminService.getAttendance()
+        ]);
+        setStudents(sData);
+        setHistory(aData);
+        
+        // Find existing attendance for today to pre-fill or disable
+        const initial: Record<string, 'present' | 'absent' | 'late'> = {};
+        aData.forEach((a: any) => {
+          if (a.date.startsWith(todayStr)) {
+            initial[a.studentId] = a.status;
           }
-          setLoading(false);
-        }).catch(() => {
-          setLoading(false);
         });
+        setAttendance(initial);
       }
-    });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchData();
   }, []);
 
   const handleStatusChange = (id: string, status: 'present' | 'absent' | 'late') => {
+    if (isAlreadyMarked(id)) return; // Disable changing if already marked today
     setAttendance(prev => ({ ...prev, [id]: status }));
   };
 
   const saveAttendance = async () => {
-    setSaving(true);
-    try {
-      const records = Object.entries(attendance).map(([studentId, status]) => ({
+    // Only send records that haven't been marked today yet
+    const recordsToMark = Object.entries(attendance)
+      .filter(([studentId]) => !isAlreadyMarked(studentId))
+      .map(([studentId, status]) => ({
         studentId,
         status,
-        date: new Date().toISOString(),
       }));
-      await api.post('/attendance', records);
+
+    if (recordsToMark.length === 0) {
+      alert('Everything is already handled for today!');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await adminService.markAttendance(recordsToMark);
+      await fetchData(); // Refresh
       alert('Attendance saved successfully!');
     } catch (err) {
-      alert('Failed to save attendance');
+      alert('Failed to save attendance. Some students might already be marked.');
     } finally {
       setSaving(false);
     }
   };
 
-  const filtered = students.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  const isAlreadyMarked = (studentId: string) => {
+    return history.some(a => a.studentId === studentId && a.date.startsWith(todayStr));
+  };
+
+  const classes = ['All', ...Array.from(new Set(students.map(s => s.class))).filter(Boolean)];
+
+  const filtered = students.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
+                         (s.rollNumber || '').toLowerCase().includes(search.toLowerCase());
+    const matchesClass = selectedClass === 'All' || s.class === selectedClass;
+    return matchesSearch && matchesClass;
+  });
 
   if (user?.role === 'student') {
     return (
@@ -153,9 +183,9 @@ export const AttendanceModule = () => {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="bg-white border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
           >
-            <option value="10-A">Class 10-A</option>
-            <option value="9-B">Class 9-B</option>
-            <option value="8-C">Class 8-C</option>
+            {classes.map(c => (
+              <option key={c} value={c}>{c === 'All' ? 'Select Class...' : `Class ${c}`}</option>
+            ))}
           </select>
           <Button onClick={saveAttendance} isLoading={saving} className="shadow-lg shadow-primary/20 rounded-xl h-11 px-6">
             <Save className="h-4 w-4 mr-2" />
@@ -169,7 +199,7 @@ export const AttendanceModule = () => {
           <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Search student..."
+            placeholder="Search student by name or roll no..."
             className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -181,7 +211,7 @@ export const AttendanceModule = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20">
         {loading ? (
           Array(4).fill(0).map((_, i) => (
             <div key={i} className="h-24 bg-slate-100 rounded-2xl animate-pulse" />
@@ -191,64 +221,85 @@ export const AttendanceModule = () => {
             <p className="text-slate-400 font-medium font-display text-xl">No students found matching filters.</p>
           </div>
         ) : (
-          filtered.map((student) => (
-            <motion.div 
-              layout
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              key={student.id}
-            >
-              <Card className="p-4 md:p-6 border-slate-200/60 shadow-sm hover:shadow-md transition-all group overflow-visible">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 min-w-0">
-                    <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10 font-bold text-lg select-none">
-                      {student.rollNumber || 'S'}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-base font-bold text-slate-900 truncate">{student.name}</h4>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{student.class} - {student.section}</p>
-                    </div>
-                  </div>
+          filtered.map((student) => {
+            const marked = isAlreadyMarked(student.id);
+            const currentStatus = attendance[student.id];
 
-                  <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
-                    <button
-                      onClick={() => handleStatusChange(student.id, 'present')}
-                      className={cn(
-                        "flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-all",
-                        attendance[student.id] === 'present' 
-                          ? "bg-white text-emerald-600 shadow-sm scale-110 ring-1 ring-slate-200" 
-                          : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      <CheckCircle2 className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(student.id, 'late')}
-                      className={cn(
-                        "flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-all",
-                        attendance[student.id] === 'late' 
-                          ? "bg-white text-amber-500 shadow-sm scale-110 ring-1 ring-slate-200" 
-                          : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      <Clock className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(student.id, 'absent')}
-                      className={cn(
-                        "flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-all",
-                        attendance[student.id] === 'absent' 
-                          ? "bg-white text-rose-500 shadow-sm scale-110 ring-1 ring-slate-200" 
-                          : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      <XCircle className="h-5 w-5" />
-                    </button>
+            return (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                key={student.id}
+                className={cn(marked && "opacity-60")}
+              >
+                <Card className={cn(
+                  "p-4 md:p-6 border-slate-200/60 shadow-sm hover:shadow-md transition-all group overflow-visible",
+                  marked && "bg-slate-50 border-dashed"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 min-w-0">
+                      <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10 font-bold text-lg select-none">
+                        {student.rollNumber || 'S'}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-base font-bold text-slate-900 truncate">{student.name}</h4>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{student.class} - {student.section}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                      <button
+                        disabled={marked}
+                        onClick={() => handleStatusChange(student.id, 'present')}
+                        className={cn(
+                          "flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-all",
+                          (currentStatus === 'present' || (marked && currentStatus === 'present'))
+                            ? "bg-emerald-500 text-white shadow-lg ring-1 ring-emerald-600" 
+                            : "text-slate-400 hover:text-slate-600",
+                          marked && currentStatus !== 'present' && "opacity-30 cursor-not-allowed"
+                        )}
+                      >
+                        <CheckCircle2 className="h-5 w-5" />
+                      </button>
+                      <button
+                        disabled={marked}
+                        onClick={() => handleStatusChange(student.id, 'late')}
+                        className={cn(
+                          "flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-all mx-1",
+                          (currentStatus === 'late' || (marked && currentStatus === 'late'))
+                            ? "bg-amber-500 text-white shadow-lg ring-1 ring-amber-600" 
+                            : "text-slate-400 hover:text-slate-600",
+                          marked && currentStatus !== 'late' && "opacity-30 cursor-not-allowed"
+                        )}
+                      >
+                        <Clock className="h-5 w-5" />
+                      </button>
+                      <button
+                        disabled={marked}
+                        onClick={() => handleStatusChange(student.id, 'absent')}
+                        className={cn(
+                          "flex flex-col items-center justify-center w-12 h-12 rounded-lg transition-all",
+                          (currentStatus === 'absent' || (marked && currentStatus === 'absent'))
+                            ? "bg-rose-500 text-white shadow-lg ring-1 ring-rose-600" 
+                            : "text-slate-400 hover:text-slate-600",
+                          marked && currentStatus !== 'absent' && "opacity-30 cursor-not-allowed"
+                        )}
+                      >
+                        <XCircle className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))
+                  {marked && (
+                    <div className="mt-3 flex items-center text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg w-fit uppercase tracking-widest border border-emerald-100">
+                      <CheckCircle2 className="h-3 w-3 mr-1.5" />
+                      Marked for today
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            );
+          })
         )}
       </div>
     </div>
