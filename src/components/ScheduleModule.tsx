@@ -15,7 +15,14 @@ export const ScheduleModule = () => {
 
   React.useEffect(() => {
     api.get('/schedule').then(res => {
-      setSchedule(res.data);
+      if (Array.isArray(res.data)) {
+        setSchedule(res.data);
+      } else {
+        setSchedule([]);
+      }
+      setLoading(false);
+    }).catch(() => {
+      setSchedule([]);
       setLoading(false);
     });
   }, []);

@@ -13,7 +13,7 @@ const DATA_DIR = path.join(process.cwd(), "data");
 async function initDb() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    const collections = ["users", "students", "teachers", "attendance", "fees", "exams", "results", "announcements"];
+    const collections = ["users", "students", "teachers", "attendance", "fees", "exams", "results", "announcements", "applications", "schedule"];
     for (const col of collections) {
       const filePath = path.join(DATA_DIR, `${col}.json`);
       try {

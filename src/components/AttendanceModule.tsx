@@ -28,15 +28,26 @@ export const AttendanceModule = () => {
       setUser(u);
       if (u.role === 'student') {
         api.get('/attendance').then(res => {
-          setHistory(res.data.filter((r: any) => r.studentId === u.id));
+          if (Array.isArray(res.data)) {
+            setHistory(res.data.filter((r: any) => r.studentId === u.id));
+          } else {
+            setHistory([]);
+          }
+          setLoading(false);
+        }).catch(() => {
+          setHistory([]);
           setLoading(false);
         });
       } else {
         studentService.getStudents().then(data => {
-          setStudents(data);
-          const initial: Record<string, 'present' | 'absent' | 'late'> = {};
-          data.forEach((s: Student) => initial[s.id] = 'present');
-          setAttendance(initial);
+          if (Array.isArray(data)) {
+            setStudents(data);
+            const initial: Record<string, 'present' | 'absent' | 'late'> = {};
+            data.forEach((s: Student) => initial[s.id] = 'present');
+            setAttendance(initial);
+          }
+          setLoading(false);
+        }).catch(() => {
           setLoading(false);
         });
       }

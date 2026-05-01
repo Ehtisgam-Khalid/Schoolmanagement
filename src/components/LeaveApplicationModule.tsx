@@ -26,9 +26,14 @@ export const LeaveApplicationModule = () => {
   const fetchApplications = async () => {
     try {
       const data = await applicationService.getApplications();
-      setApplications(data);
+      if (Array.isArray(data)) {
+        setApplications(data);
+      } else {
+        setApplications([]);
+      }
     } catch (err) {
       console.error(err);
+      setApplications([]);
     } finally {
       setLoading(false);
     }
