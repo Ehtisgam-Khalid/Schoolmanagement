@@ -19,7 +19,7 @@ export const AttendanceModule = () => {
   const [history, setHistory] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const [selectedClass, setSelectedClass] = React.useState('All');
+  const [selectedClass, setSelectedClass] = React.useState('');
   const [search, setSearch] = React.useState('');
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -71,14 +71,18 @@ export const AttendanceModule = () => {
   const saveAttendance = async () => {
     // Only send records that haven't been marked today yet
     const recordsToMark = Object.entries(attendance)
-      .filter(([studentId]) => !isAlreadyMarked(studentId))
+      .filter(([studentId]) => {
+        // Also ensure student belongs to selected class if we want to be strict
+        const student = students.find(s => s.id === studentId);
+        return !isAlreadyMarked(studentId) && (selectedClass === '' || student?.class === selectedClass);
+      })
       .map(([studentId, status]) => ({
         studentId,
         status,
       }));
 
     if (recordsToMark.length === 0) {
-      alert('Everything is already handled for today!');
+      alert('No new attendance records to save for this class/search.');
       return;
     }
 
@@ -88,7 +92,7 @@ export const AttendanceModule = () => {
       await fetchData(); // Refresh
       alert('Attendance saved successfully!');
     } catch (err) {
-      alert('Failed to save attendance. Some students might already be marked.');
+      alert('Failed to save attendance.');
     } finally {
       setSaving(false);
     }
@@ -98,12 +102,12 @@ export const AttendanceModule = () => {
     return history.some(a => a.studentId === studentId && a.date.startsWith(todayStr));
   };
 
-  const classes = ['All', ...Array.from(new Set(students.map(s => s.class))).filter(Boolean)];
+  const classes = Array.from(new Set(students.map(s => s.class))).filter(Boolean);
 
   const filtered = students.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
                          (s.rollNumber || '').toLowerCase().includes(search.toLowerCase());
-    const matchesClass = selectedClass === 'All' || s.class === selectedClass;
+    const matchesClass = selectedClass === '' || s.class === selectedClass;
     return matchesSearch && matchesClass;
   });
 
@@ -183,8 +187,9 @@ export const AttendanceModule = () => {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="bg-white border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
           >
+            <option value="">All Students</option>
             {classes.map(c => (
-              <option key={c} value={c}>{c === 'All' ? 'Select Class...' : `Class ${c}`}</option>
+              <option key={c} value={c}>{`Class ${c}`}</option>
             ))}
           </select>
           <Button onClick={saveAttendance} isLoading={saving} className="shadow-lg shadow-primary/20 rounded-xl h-11 px-6">

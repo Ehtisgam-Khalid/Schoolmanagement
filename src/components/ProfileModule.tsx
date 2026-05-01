@@ -28,9 +28,13 @@ export const ProfileModule = () => {
       <div className="relative px-8 -mt-20">
         <div className="flex flex-col md:flex-row items-end md:items-center space-y-4 md:space-y-0 md:space-x-6">
           <div className="relative group">
-            <div className="h-32 w-32 rounded-3xl bg-white p-2 shadow-2xl ring-4 ring-white/50">
-              <div className="h-full w-full bg-slate-100 rounded-2xl flex items-center justify-center text-4xl font-bold text-primary font-display">
-                {user.name.charAt(0)}
+            <div className="h-32 w-32 rounded-3xl bg-white p-2 shadow-2xl ring-4 ring-white/50 overflow-hidden">
+              <div className="h-full w-full bg-slate-100 rounded-2xl flex items-center justify-center text-4xl font-bold text-primary font-display overflow-hidden">
+                {user.profilePic ? (
+                  <img src={user.profilePic} className="h-full w-full object-cover" alt={user.name} />
+                ) : (
+                  user.name.charAt(0)
+                )}
               </div>
             </div>
             <button className="absolute bottom-2 right-2 p-2 bg-primary text-white rounded-xl shadow-lg border-2 border-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -66,19 +70,19 @@ export const ProfileModule = () => {
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
                     <Phone className="h-3.5 w-3.5 mr-2" /> Phone Number
                   </label>
-                  <p className="text-slate-900 font-bold font-sans">+92 300 1234567</p>
+                  <p className="text-slate-900 font-bold font-sans">{user.parentContact || '+92 300 1234567'}</p>
                 </div>
                 <div className="space-y-1.5 px-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
-                    <Shield className="h-3.5 w-3.5 mr-2" /> Nationality ID (CNIC)
+                    <Shield className="h-3.5 w-3.5 mr-2" /> Nationality ID / Roll No
                   </label>
-                  <p className="text-slate-900 font-bold font-sans">42101-1234567-8</p>
+                  <p className="text-slate-900 font-bold font-sans">{user.cnic || user.rollNumber || 'N/A'}</p>
                 </div>
                 <div className="space-y-1.5 px-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
                     <Calendar className="h-3.5 w-3.5 mr-2" /> Join Date
                   </label>
-                  <p className="text-slate-900 font-bold font-sans">August 12, 2024</p>
+                  <p className="text-slate-900 font-bold font-sans">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'August 12, 2024'}</p>
                 </div>
               </div>
             </Card>
@@ -90,8 +94,7 @@ export const ProfileModule = () => {
                 </div>
                 <div>
                   <p className="text-slate-900 font-bold leading-relaxed">
-                    House #123, Sector 15-A, North Karachi<br />
-                    Karachi, Sindh, Pakistan
+                    {user.address || 'Address not listed' }
                   </p>
                 </div>
               </div>
