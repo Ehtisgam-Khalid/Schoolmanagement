@@ -59,6 +59,18 @@ export const adminService = {
     const { data } = await api.patch(`/fees/${id}/approve`);
     return data;
   },
+  addExtraCharge: async (chargeData: any) => {
+    const { data } = await api.post('/fees/add-charge', chargeData);
+    return data;
+  },
+  updateStudent: async (id: string, studentData: any) => {
+    const { data } = await api.put(`/students/${id}`, studentData);
+    return data;
+  },
+  deleteStudent: async (id: string) => {
+    const { data } = await api.delete(`/students/${id}`);
+    return data;
+  },
 };
 
 export const studentService = {
@@ -84,6 +96,14 @@ export const studentService = {
   },
   getSchedule: async () => {
     const { data } = await api.get('/schedule');
+    return data;
+  },
+  addScheduleEntry: async (entry: any) => {
+    const { data } = await api.post('/schedule', entry);
+    return data;
+  },
+  deleteScheduleEntry: async (id: string) => {
+    const { data } = await api.delete(`/schedule/${id}`);
     return data;
   },
 };

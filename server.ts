@@ -446,6 +446,77 @@ async function startServer() {
     ]);
   });
 
+  // Helper to generate monthly fees
+  const generateMonthlyFees = async () => {
+    const students = await readCol("students");
+    const fees = await readCol("fees");
+    const today = new Date();
+    const month = today.toLocaleString('default', { month: 'long' });
+    const year = today.getFullYear();
+    const title = `Monthly Tuition Fee - ${month} ${year}`;
+    
+    // Only run if today is 28th or later and we haven't generated for this month
+    if (today.getDate() < 28) return;
+    
+    let updated = false;
+    for (const student of students) {
+      const exists = fees.find((f: any) => 
+        f.studentId === student.id && 
+        f.title === title
+      );
+      
+      if (!exists) {
+        // Due date is 10th of next month
+        const dueDate = new Date(year, today.getMonth() + 1, 10);
+        
+        fees.push({
+          id: uuidv4(),
+          studentId: student.id,
+          title: title,
+          amount: parseInt(student.monthlyFees || "2000"),
+          date: today.toISOString(),
+          dueDate: dueDate.toISOString(),
+          status: "pending",
+          isMonthly: true
+        });
+        updated = true;
+      }
+    }
+    
+    if (updated) await writeCol("fees", fees);
+  };
+
+  // Helper to apply late fees
+  const applyLateFees = async () => {
+    const fees = await readCol("fees");
+    const today = new Date();
+    let updated = false;
+    
+    for (let i = 0; i < fees.length; i++) {
+      const fee = fees[i];
+      if (fee.status === "pending" && fee.dueDate) {
+        const dueDate = new Date(fee.dueDate);
+        if (today > dueDate && !fee.lateFeeApplied) {
+          fee.amount += 1500;
+          fee.lateFeeApplied = true;
+          fee.lateFeeAmount = 1500;
+          updated = true;
+        }
+      }
+    }
+    
+    if (updated) await writeCol("fees", fees);
+  };
+
+  // Run checks on relevant requests
+  app.use("/api/fees", async (req, res, next) => {
+    if (req.method === "GET") {
+      await generateMonthlyFees();
+      await applyLateFees();
+    }
+    next();
+  });
+
   // Fees
   app.get("/api/fees", authenticate, async (req: any, res) => {
     const fees = await readCol("fees");
@@ -453,6 +524,94 @@ async function startServer() {
       return res.json(fees.filter((f: any) => f.studentId === req.user.id));
     }
     res.json(fees);
+  });
+
+  app.post("/api/fees/add-charge", authenticate, authorize(["admin"]), async (req, res) => {
+    const { studentId, title, amount, dueDate, targetType, targetClass, targetSection } = req.body;
+    
+    if (!title || !amount) return res.status(400).json({ error: "Missing fields" });
+    
+    const fees = await readCol("fees");
+    const students = await readCol("students");
+    let targetStudents = [];
+
+    if (targetType === "school") {
+      targetStudents = students;
+    } else if (targetType === "class") {
+      targetStudents = students.filter((s: any) => s.class === targetClass);
+    } else if (studentId) {
+      targetStudents = students.filter((s: any) => s.id === studentId);
+    }
+
+    if (targetStudents.length === 0) return res.status(404).json({ error: "No students found for criteria" });
+
+    const newFees = targetStudents.map(student => ({
+      id: uuidv4(),
+      studentId: student.id,
+      title,
+      amount: parseInt(amount),
+      date: new Date().toISOString(),
+      dueDate: dueDate || new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+      status: "pending"
+    }));
+    
+    fees.push(...newFees);
+    await writeCol("fees", fees);
+    res.status(201).json({ message: `Added charges to ${newFees.length} students` });
+  });
+
+  app.put("/api/students/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    const students = await readCol("students");
+    const index = students.findIndex((s: any) => s.id === req.params.id);
+    if (index === -1) return res.status(404).json({ error: "Student not found" });
+
+    students[index] = { ...students[index], ...req.body };
+    await writeCol("students", students);
+    
+    // Also update user name if needed
+    const users = await readCol("users");
+    const uIndex = users.findIndex((u: any) => u.id === req.params.id);
+    if (uIndex !== -1) {
+      users[uIndex].name = `${req.body.name} ${req.body.lastName || ""}`.trim();
+      await writeCol("users", users);
+    }
+
+    res.json(students[index]);
+  });
+
+  app.delete("/api/students/:id", authenticate, authorize(["admin"]), async (req, res) => {
+    let students = await readCol("students");
+    let users = await readCol("users");
+    let fees = await readCol("fees");
+
+    students = students.filter((s: any) => s.id !== req.params.id);
+    users = users.filter((u: any) => u.id !== req.params.id);
+    fees = fees.filter((f: any) => f.studentId !== req.params.id);
+
+    await writeCol("students", students);
+    await writeCol("users", users);
+    await writeCol("fees", fees);
+
+    res.json({ message: "Student deleted successfully" });
+  });
+
+  app.post("/api/schedule", authenticate, async (req: any, res) => {
+    const schedule = await readCol("schedule");
+    const newEntry = {
+      ...req.body,
+      id: uuidv4(),
+      userId: req.user.id // Track who created/owns this entry
+    };
+    schedule.push(newEntry);
+    await writeCol("schedule", schedule);
+    res.status(201).json(newEntry);
+  });
+
+  app.delete("/api/schedule/:id", authenticate, async (req: any, res) => {
+    let schedule = await readCol("schedule");
+    schedule = schedule.filter((s: any) => s.id !== req.params.id);
+    await writeCol("schedule", schedule);
+    res.json({ message: "Deleted" });
   });
 
   app.post("/api/fees/:id/pay", authenticate, authorize(["student"]), async (req: any, res) => {

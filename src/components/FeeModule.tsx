@@ -6,11 +6,183 @@
 import React from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { CheckCircle2, DollarSign, CreditCard, Clock, FileText, Plus, Download, Filter, Eye, CheckCircle, XCircle, Share2, Printer } from 'lucide-react';
+import { CheckCircle2, DollarSign, CreditCard, Clock, FileText, Plus, Download, Filter, Eye, CheckCircle, XCircle, Share2, Printer, Search, AlertTriangle } from 'lucide-react';
 import { studentService, adminService, api, authService } from '../services/api';
 import { Student } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { Input } from './ui/Input';
+
+const ProofModal = ({ fee, onClose, onApprove }: { fee: any, onClose: () => void, onApprove: (id: string) => void }) => {
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden font-sans border border-slate-200"
+      >
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="text-xl font-black text-slate-900">Payment Verification Proof</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle className="h-6 w-6" /></button>
+        </div>
+        <div className="p-8">
+          <div className="aspect-video bg-slate-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-slate-200 overflow-hidden mb-6">
+            {fee.screenshot === 'submitted_via_portal' ? (
+              <div className="text-center p-6">
+                <Share2 className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm font-bold text-slate-400">Transaction proof was submitted via mobile app portal</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Ref ID: {fee.id.split('-')[0]}</p>
+              </div>
+            ) : (
+              <img src={fee.screenshot} alt="Payment Proof" className="w-full h-full object-cover" />
+            )}
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-sm font-bold text-slate-500">Submission Date:</span>
+              <span className="text-sm font-black text-slate-900">{new Date(fee.submissionDate || fee.date).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm font-bold text-slate-500">Amount to Verify:</span>
+              <span className="text-sm font-black text-primary">PKR {fee.amount.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 border-t border-slate-100 flex space-x-3">
+          <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
+          <Button 
+            className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => onApprove(fee.id)}
+          >
+            Accept & Approve
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const ExtraChargeModal = ({ students, onClose, onSuccess }: { students: Student[], onClose: () => void, onSuccess: () => void }) => {
+  const [formData, setFormData] = React.useState({
+    targetType: 'individual', // individual, class, school
+    targetClass: '',
+    studentId: '',
+    title: '',
+    amount: '',
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  });
+  const [loading, setLoading] = React.useState(false);
+
+  const classes = Array.from(new Set(students.map(s => s.class))).filter(Boolean);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await adminService.addExtraCharge(formData);
+      onSuccess();
+    } catch (err) {
+      alert('Failed to add charge');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden font-sans border border-slate-200"
+      >
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <h3 className="text-xl font-black text-slate-900">Add Dues / Charges</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle className="h-6 w-6" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Charge Target</label>
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+              {['individual', 'class', 'school'].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setFormData({...formData, targetType: t})}
+                  className={cn(
+                    "flex-1 py-2 text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all",
+                    formData.targetType === t ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {formData.targetType === 'individual' && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Student</label>
+              <select 
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none"
+                value={formData.studentId}
+                onChange={(e) => setFormData({...formData, studentId: e.target.value})}
+                required={formData.targetType === 'individual'}
+              >
+                <option value="">Select a student...</option>
+                {students.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.rollNumber})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {formData.targetType === 'class' && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Class</label>
+              <select 
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 appearance-none"
+                value={formData.targetClass}
+                onChange={(e) => setFormData({...formData, targetClass: e.target.value})}
+                required={formData.targetType === 'class'}
+              >
+                <option value="">Choose Class...</option>
+                {classes.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <Input 
+            label="Charge Description (e.g. Annual Trip)" 
+            required 
+            value={formData.title}
+            onChange={(e) => setFormData({...formData, title: e.target.value})}
+          />
+          <Input 
+            label="Amount (PKR)" 
+            type="number" 
+            required 
+            value={formData.amount}
+            onChange={(e) => setFormData({...formData, amount: e.target.value})}
+          />
+          <Input 
+            label="Due Date" 
+            type="date" 
+            required 
+            value={formData.dueDate}
+            onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+          />
+          <Button type="submit" className="w-full py-6 rounded-2xl shadow-lg mt-4" isLoading={loading}>
+            {formData.targetType === 'school' ? 'Apply to All Students' : 
+             formData.targetType === 'class' ? `Apply to Class ${formData.targetClass}` :
+             'Apply to Selected Student'}
+          </Button>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
 
 const VoucherModal = ({ fee, student, onClose }: { fee: any, student: any, onClose: () => void }) => {
   return (
@@ -86,6 +258,9 @@ export const FeeModule = () => {
   const [approving, setApproving] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<'all' | 'paid' | 'pending' | 'submitted'>('all');
   const [showVoucher, setShowVoucher] = React.useState<any>(null);
+  const [showProof, setShowProof] = React.useState<any>(null);
+  const [showExtraCharge, setShowExtraCharge] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const fetchData = async () => {
     try {
@@ -133,6 +308,7 @@ export const FeeModule = () => {
       alert('Approval failed.');
     } finally {
       setApproving(null);
+      setShowProof(null);
     }
   };
 
@@ -142,7 +318,21 @@ export const FeeModule = () => {
     { label: 'Pending/Unpaid', value: `PKR ${fees.filter(f => f.status !== 'paid').reduce((acc, f) => acc + f.amount, 0).toLocaleString()}`, icon: Clock, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
 
-  const isAdmin = user?.role === 'admin';
+  const filteredFees = fees.filter(f => {
+    const matchesFilter = filter === 'all' || f.status === filter;
+    if (!matchesFilter) return false;
+    
+    if (user?.role !== 'student' && searchQuery) {
+      const student = students.find(s => s.id === f.studentId);
+      const query = searchQuery.toLowerCase();
+      return (
+        student?.name?.toLowerCase().includes(query) || 
+        student?.rollNumber?.toLowerCase().includes(query) ||
+        f.title.toLowerCase().includes(query)
+      );
+    }
+    return true;
+  });
 
   if (user?.role === 'student') {
     const pendingFees = fees.filter(f => f.status === 'pending');
@@ -222,9 +412,19 @@ export const FeeModule = () => {
                       </div>
                       <div>
                         <p className="text-sm font-black text-slate-900 tracking-tight">{item.title}</p>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none mt-1.5 flex items-center">
-                          <Clock className="h-3 w-3 mr-1" /> {new Date(item.date).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center space-x-3 mt-1.5">
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-none flex items-center">
+                            <Clock className="h-3 w-3 mr-1" /> {new Date(item.date).toLocaleDateString()}
+                          </p>
+                          {item.dueDate && item.status === 'pending' && (
+                            <p className={cn(
+                              "text-[10px] font-black uppercase tracking-widest flex items-center",
+                              new Date() > new Date(item.dueDate) ? "text-rose-500" : "text-amber-500"
+                            )}>
+                              <AlertTriangle className="h-3 w-3 mr-1" /> Due: {new Date(item.dueDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end">
@@ -268,10 +468,11 @@ export const FeeModule = () => {
   }
 
   // Admin View
-  const filteredFees = fees.filter(f => filter === 'all' || f.status === filter);
-
   return (
     <div className="space-y-8">
+      {showProof && <ProofModal fee={showProof} onClose={() => setShowProof(null)} onApprove={handleApprove} />}
+      {showExtraCharge && <ExtraChargeModal students={students} onClose={() => setShowExtraCharge(false)} onSuccess={() => { setShowExtraCharge(false); fetchData(); }} />}
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-bold font-display text-slate-900 tracking-tight">Finance Administration</h2>
@@ -281,8 +482,11 @@ export const FeeModule = () => {
           <Button variant="outline" className="rounded-xl h-11 px-6 border-slate-200">
             <Download className="h-4 w-4 mr-2" /> Report
           </Button>
-          <Button className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4 mr-2" /> Create Invoice
+          <Button 
+            className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20"
+            onClick={() => setShowExtraCharge(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Other Charges
           </Button>
         </div>
       </div>
@@ -303,15 +507,24 @@ export const FeeModule = () => {
         ))}
       </div>
 
-      <div className="flex items-center justify-between space-x-4 max-w-lg mb-6">
-        <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Filter Records:</label>
-        <div className="flex-1 flex items-center bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search student name, roll number... "
+            className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex-1 flex items-center bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm max-w-lg">
           {(['all', 'paid', 'submitted', 'pending'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                "flex-1 py-1.5 px-3 text-[10px] font-black rounded-xl transition-all capitalize uppercase tracking-tighter",
+                "flex-1 py-1.5 px-3 text-[10px] font-black rounded-xl transition-all capitalize uppercase tracking-widest",
                 filter === f ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:text-slate-800"
               )}
             >
@@ -329,7 +542,7 @@ export const FeeModule = () => {
                 <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Student / Payee</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Description</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Amount</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Due Date</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Verification</th>
               </tr>
             </thead>
@@ -342,7 +555,7 @@ export const FeeModule = () => {
                 ))
               ) : filteredFees.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center text-slate-400 font-display">No fee records found for the selected filter.</td>
+                  <td colSpan={5} className="px-6 py-20 text-center text-slate-400 font-display">No matching records found.</td>
                 </tr>
               ) : (
                 filteredFees.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((f) => {
@@ -352,7 +565,7 @@ export const FeeModule = () => {
                       <td className="px-6 py-5">
                         <div className="flex items-center space-x-3">
                           <div className={cn(
-                            "h-10 w-10 rounded-full flex items-center justify-center font-bold text-white",
+                            "h-10 w-10 rounded-full flex items-center justify-center font-bold text-white shadow-inner",
                             f.status === 'paid' ? "bg-emerald-500" : "bg-slate-300"
                           )}>
                             {student?.name?.charAt(0) || 'S'}
@@ -367,37 +580,46 @@ export const FeeModule = () => {
                         <p className="text-sm font-medium text-slate-700">{f.title}</p>
                         <p className="text-[10px] text-slate-400 font-medium italic">{new Date(f.date).toLocaleDateString()}</p>
                       </td>
-                      <td className="px-6 py-5 text-sm font-black text-slate-950">PKR {f.amount.toLocaleString()}</td>
                       <td className="px-6 py-5">
-                        <span className={cn(
-                          "inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider",
-                          f.status === 'paid' ? "bg-emerald-100 text-emerald-700" : 
-                          f.status === 'submitted' ? "bg-blue-100 text-blue-700" :
-                          "bg-rose-100 text-rose-700"
-                        )}>
-                          {f.status}
-                        </span>
+                        <p className="text-sm font-black text-slate-950">PKR {f.amount.toLocaleString()}</p>
+                        {f.lateFeeApplied && (
+                          <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">Incl. Late Fee (1,500)</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-5">
+                        {f.dueDate ? (
+                          <span className={cn(
+                            "text-xs font-bold",
+                            new Date() > new Date(f.dueDate) && f.status !== 'paid' ? "text-rose-500" : "text-slate-500"
+                          )}>
+                            {new Date(f.dueDate).toLocaleDateString()}
+                          </span>
+                        ) : '-'}
                       </td>
                       <td className="px-6 py-5 text-right">
                         {f.status !== 'paid' ? (
                           <div className="flex items-center justify-end space-x-2">
-                             {f.status === 'submitted' && (
-                               <Button variant="outline" size="sm" className="h-8 text-[10px] border-blue-200 text-blue-600 hover:bg-blue-50">
+                             {f.status === 'submitted' ? (
+                               <button 
+                                onClick={() => setShowProof(f)}
+                                className="inline-flex items-center justify-center h-8 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+                               >
                                  <Eye className="h-3.5 w-3.5 mr-1" /> View Proof
-                               </Button>
+                               </button>
+                             ) : (
+                              <Button 
+                                onClick={() => handleApprove(f.id)}
+                                size="sm" 
+                                className="h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 shadow-sm font-black uppercase tracking-widest px-4"
+                                isLoading={approving === f.id}
+                              >
+                                Mark as Paid
+                              </Button>
                              )}
-                             <Button 
-                              size="sm" 
-                              className="h-8 text-[10px] bg-emerald-600 hover:bg-emerald-700 shadow-sm"
-                              onClick={() => handleApprove(f.id)}
-                              isLoading={approving === f.id}
-                             >
-                               Mark as Paid
-                             </Button>
                           </div>
                         ) : (
-                          <span className="text-emerald-500 flex items-center justify-end text-[10px] font-black uppercase">
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Verified
+                          <span className="text-emerald-500 flex items-center justify-end text-[10px] font-black uppercase tracking-widest">
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Verified
                           </span>
                         )}
                       </td>
