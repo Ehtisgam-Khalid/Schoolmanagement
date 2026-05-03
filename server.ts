@@ -1,123 +1,219 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import fs from "fs/promises";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import Database from "better-sqlite3";
+import mysql from "mysql2/promise";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || "edu-flow-super-secret-key";
-const DATA_DIR = path.join(process.cwd(), "data");
 
-// Helper to ensure data directory and files exist
+// Database Connection Logic
+let mysqlPool: mysql.Pool | null = null;
+const sqliteDb = new Database(path.join(__dirname, "school.db"));
+sqliteDb.pragma('journal_mode = WAL');
+sqliteDb.pragma('foreign_keys = ON');
+
+async function initPool() {
+  if (process.env.MYSQL_HOST) {
+    try {
+      mysqlPool = mysql.createPool({
+        host: process.env.MYSQL_HOST,
+        port: parseInt(process.env.MYSQL_PORT || '3306'),
+        user: process.env.MYSQL_USER,
+        password: process.env.MYSQL_PASSWORD,
+        database: process.env.MYSQL_DATABASE,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        connectTimeout: 5000
+      });
+      // Test connection
+      await mysqlPool.query('SELECT 1');
+      console.log("Successfully connected to MySQL database.");
+    } catch (err) {
+      console.error("MySQL Connection failed, falling back to SQLite:", (err as Error).message);
+      mysqlPool = null;
+    }
+  }
+}
+
+async function query(sql: string, params?: any[]) {
+  if (mysqlPool) {
+    try {
+      const [rows]: any = await mysqlPool.execute(sql, params);
+      return rows;
+    } catch (err) {
+      console.error("MySQL Query Error:", err);
+      throw err;
+    }
+  } else {
+    const stmt = sqliteDb.prepare(sql);
+    if (sql.trim().toUpperCase().startsWith("SELECT")) {
+      return stmt.all(params || []);
+    } else {
+      return stmt.run(params || []);
+    }
+  }
+}
+
+// Helper to ensure database tables exist
 async function initDb() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    const collections = ["users", "students", "teachers", "attendance", "fees", "exams", "results", "announcements", "applications", "schedule", "books", "transport", "dormitory", "exam_results", "materials"];
-    for (const col of collections) {
-      const filePath = path.join(DATA_DIR, `${col}.json`);
-      try {
-        await fs.access(filePath);
-      } catch {
-        await fs.writeFile(filePath, JSON.stringify([]));
-      }
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS students (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255),
+      role VARCHAR(50),
+      class VARCHAR(50),
+      section VARCHAR(50),
+      feeStatus VARCHAR(50),
+      rollNumber VARCHAR(50),
+      FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS teachers (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255),
+      role VARCHAR(50),
+      subject VARCHAR(100),
+      qualification VARCHAR(255),
+      joinDate DATE,
+      salary DECIMAL(10, 2),
+      status VARCHAR(50),
+      FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS attendance (
+      id VARCHAR(36) PRIMARY KEY,
+      studentId VARCHAR(36),
+      date DATE,
+      status VARCHAR(50),
+      FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS fees (
+      id VARCHAR(36) PRIMARY KEY,
+      studentId VARCHAR(36),
+      title VARCHAR(255),
+      amount DECIMAL(10, 2),
+      date DATE,
+      status VARCHAR(50),
+      FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS exams (
+      id VARCHAR(36) PRIMARY KEY,
+      title VARCHAR(255),
+      subject VARCHAR(100),
+      class VARCHAR(50),
+      date DATE,
+      status VARCHAR(50) DEFAULT 'pending'
+    )`,
+    `CREATE TABLE IF NOT EXISTS results (
+      id VARCHAR(36) PRIMARY KEY,
+      studentId VARCHAR(36),
+      examId VARCHAR(36),
+      subject VARCHAR(100),
+      marks INT,
+      totalMarks INT,
+      grade VARCHAR(10),
+      FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+      FOREIGN KEY (examId) REFERENCES exams(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS announcements (
+      id VARCHAR(36) PRIMARY KEY,
+      title VARCHAR(255),
+      content TEXT,
+      targetRoles TEXT,
+      date DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS applications (
+      id VARCHAR(36) PRIMARY KEY,
+      studentId VARCHAR(36),
+      type VARCHAR(50),
+      reason TEXT,
+      status VARCHAR(50),
+      date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS schedule (
+      id VARCHAR(36) PRIMARY KEY,
+      class VARCHAR(50),
+      day VARCHAR(20),
+      time VARCHAR(50),
+      subject VARCHAR(100),
+      teacher VARCHAR(255)
+    )`,
+    `CREATE TABLE IF NOT EXISTS books (
+      id VARCHAR(36) PRIMARY KEY,
+      title VARCHAR(255),
+      author VARCHAR(255),
+      isbn VARCHAR(50),
+      status VARCHAR(20) DEFAULT 'available',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS transport (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255),
+      base VARCHAR(255),
+      driverPhone VARCHAR(50)
+    )`,
+    `CREATE TABLE IF NOT EXISTS dormitory (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255),
+      capacity INT,
+      occupied INT DEFAULT 0
+    )`,
+    `CREATE TABLE IF NOT EXISTS exam_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      examId VARCHAR(36),
+      data TEXT,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (examId) REFERENCES exams(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS materials (
+      id VARCHAR(36) PRIMARY KEY,
+      title VARCHAR(255),
+      class VARCHAR(50),
+      type VARCHAR(20),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
+
+  for (const sql of tables) {
+    try {
+      await query(sql);
+    } catch (err) {
+      console.error(`Error creating table:`, err);
     }
-    
-    // Create initial admin if none exists
-    const users = JSON.parse(await fs.readFile(path.join(DATA_DIR, "users.json"), "utf8"));
-    const students = JSON.parse(await fs.readFile(path.join(DATA_DIR, "students.json"), "utf8"));
-
-    if (users.length === 0) {
-      const hashedPassword = await bcrypt.hash("admin123", 10);
-      const admin = {
-        id: uuidv4(),
-        name: "System Admin",
-        email: "admin@eduflow.com",
-        password: hashedPassword,
-        role: "admin",
-        createdAt: new Date().toISOString()
-      };
-      users.push(admin);
-      await fs.writeFile(path.join(DATA_DIR, "users.json"), JSON.stringify(users, null, 2));
-    }
-
-    // Ensure demo student exists
-    if (!users.find((u: any) => u.email === "student@eduflow.com")) {
-      const studentId = uuidv4();
-      const studentPassword = await bcrypt.hash("student123", 10);
-      const studentUser = {
-        id: studentId,
-        name: "Demo Student",
-        email: "student@eduflow.com",
-        password: studentPassword,
-        role: "student",
-        createdAt: new Date().toISOString()
-      };
-      users.push(studentUser);
-
-      const studentProfile = {
-        id: studentId,
-        name: "Demo Student",
-        email: "student@eduflow.com",
-        role: "student",
-        class: "10th",
-        section: "A",
-        feeStatus: "pending",
-        rollNumber: "S-1001"
-      };
-      students.push(studentProfile);
-
-      // Seed some initial data for the demo student
-      const fees = [
-        { id: uuidv4(), studentId, title: "Monthly Tuition Fee - April", amount: 5000, date: "2026-04-01", status: "paid" },
-        { id: uuidv4(), studentId, title: "Monthly Tuition Fee - May", amount: 5000, date: "2026-05-01", status: "pending" },
-        { id: uuidv4(), studentId, title: "Library Membership", amount: 1000, date: "2026-05-05", status: "pending" },
-      ];
-      await writeCol("fees", fees);
-
-      const results = [
-        { id: uuidv4(), studentId, examId: "1", subject: "Mathematics", marks: 85, totalMarks: 100, grade: "A" },
-        { id: uuidv4(), studentId, examId: "1", subject: "Physics", marks: 78, totalMarks: 100, grade: "B+" },
-        { id: uuidv4(), studentId, examId: "1", subject: "Chemistry", marks: 92, totalMarks: 100, grade: "A+" },
-      ];
-      await writeCol("results", results);
-
-      const announcements = [
-        { id: uuidv4(), title: "Welcome to EduFlow", content: "We are excited to have you on board! Check your classes and results here.", targetRoles: ["student", "teacher", "admin"], date: new Date().toISOString() },
-        { id: uuidv4(), title: "Summer Vacations", content: "School will remain closed from June 1st to July 31st.", targetRoles: ["student", "teacher"], date: new Date().toISOString() },
-      ];
-      await writeCol("announcements", announcements);
-
-      const attendance = [
-        { id: uuidv4(), studentId, date: "2026-04-30", status: "present" },
-        { id: uuidv4(), studentId, date: "2026-04-29", status: "present" },
-        { id: uuidv4(), studentId, date: "2026-04-28", status: "absent" },
-      ];
-      await writeCol("attendance", attendance);
-
-      await writeCol("users", users);
-      await writeCol("students", students);
-      console.log("Demo student created: student@eduflow.com / student123");
-    }
-  } catch (err) {
-    console.error("DB Init Error:", err);
   }
-}
-
-async function readCol(name: string) {
-  try {
-    const data = await fs.readFile(path.join(DATA_DIR, `${name}.json`), "utf8");
-    return JSON.parse(data);
-  } catch (err) {
-    return [];
+  
+  // Create initial admin if none exists
+  const users: any = await query("SELECT * FROM users WHERE role = 'admin' LIMIT 1");
+  if (users.length === 0) {
+    const adminId = uuidv4();
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await query(
+      "INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)",
+      [adminId, "System Admin", "admin@school.com", hashedPassword, "admin"]
+    );
+    console.log("Admin account created: admin@school.com / admin123");
   }
-}
-
-async function writeCol(name: string, data: any) {
-  await fs.writeFile(path.join(DATA_DIR, `${name}.json`), JSON.stringify(data, null, 2));
 }
 
 async function startServer() {
+  await initPool();
   await initDb();
   
   const app = express();
@@ -150,62 +246,53 @@ async function startServer() {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { name, email, password, className, section } = req.body;
-      const users = await readCol("users");
-      const students = await readCol("students");
+      const existing: any = await query("SELECT * FROM users WHERE email = ?", [email]);
 
-      if (users.find((u: any) => u.email === email)) {
+      if (existing.length > 0) {
         return res.status(400).json({ error: "Email already exists" });
       }
 
       const userId = uuidv4();
-      const newUser = {
-        id: userId,
-        name,
-        email,
-        password: await bcrypt.hash(password, 10),
-        role: "student",
-        createdAt: new Date().toISOString()
-      };
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      await query(
+        "INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)",
+        [userId, name, email, hashedPassword, "student"]
+      );
 
-      const newStudent = {
-        id: userId,
-        name,
-        email,
-        role: "student",
-        class: className || "Unassigned",
-        section: section || "N/A",
-        feeStatus: "pending",
-        rollNumber: `S-${Math.floor(1000 + Math.random() * 9000)}`
-      };
-
-      users.push(newUser);
-      students.push(newStudent);
-
-      await writeCol("users", users);
-      await writeCol("students", students);
+      const rollNumber = `S-${Math.floor(1000 + Math.random() * 9000)}`;
+      await query(
+        "INSERT INTO students (id, name, email, role, class, section, feeStatus, rollNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [userId, name, email, "student", className || "Unassigned", section || "N/A", "pending", rollNumber]
+      );
 
       const token = jwt.sign({ id: userId, name: name, role: "student" }, JWT_SECRET);
-      res.status(201).json({ token, user: newStudent });
+      res.status(201).json({ token, user: { id: userId, name, email, role: "student", class: className, section } });
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: "Registration failed" });
     }
   });
 
   app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
-    const users = await readCol("users");
-    const user = users.find((u: any) => u.email === email);
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: "Invalid credentials" });
+    try {
+      const { email, password } = req.body;
+      const users: any = await query("SELECT * FROM users WHERE email = ?", [email]);
+      const user = users[0];
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ token, user: userWithoutPassword });
+    } catch (err) {
+      res.status(500).json({ error: "Login failed" });
     }
-    const token = jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({ token, user: userWithoutPassword });
   });
 
   app.get("/api/auth/me", authenticate, async (req: any, res) => {
-    const users = await readCol("users");
-    const user = users.find((u: any) => u.id === req.user.id);
+    const users: any = await query("SELECT * FROM users WHERE id = ?", [req.user.id]);
+    const user = users[0];
     if (!user) return res.status(404).json({ error: "User not found" });
     const { password: _, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
@@ -213,377 +300,314 @@ async function startServer() {
 
   // Admin: User Management
   app.get("/api/users", authenticate, authorize(["admin"]), async (req, res) => {
-    const users = await readCol("users");
-    res.json(users.map(({ password: _, ...u }: any) => u));
+    const users: any = await query("SELECT id, name, email, role, createdAt FROM users");
+    res.json(users);
   });
 
   // Student Routes
   app.get("/api/students", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const students = await readCol("students");
+    const students = await query("SELECT * FROM students");
     res.json(students);
   });
 
   app.post("/api/students", authenticate, authorize(["admin"]), async (req, res) => {
-    console.log("Creating student:", req.body);
     try {
-      const students = await readCol("students");
-      const users = await readCol("users");
-      const fees = await readCol("fees");
+      const { name, email, class: cls, section, feeStatus, rollNumber, password: rawPassword } = req.body;
+      const existing: any = await query("SELECT * FROM users WHERE email = ?", [email]);
       
-      if (users.find((u: any) => u.email === req.body.email)) {
+      if (existing.length > 0) {
         return res.status(400).json({ error: "Email already exists" });
       }
 
-      // Create actual user first
       const studentId = uuidv4();
-      const password = req.body.password && req.body.password.trim() !== "" ? req.body.password : "student123";
+      const password = rawPassword && rawPassword.trim() !== "" ? rawPassword : "student123";
+      const hashedPassword = await bcrypt.hash(password, 10);
       
-      const studentUser = {
-        id: studentId,
-        name: `${req.body.name} ${req.body.lastName || ""}`.trim(),
-        email: req.body.email,
-        password: await bcrypt.hash(password, 10),
-        role: "student",
-        createdAt: new Date().toISOString()
-      };
-      
-      const newStudent = {
-        ...req.body,
-        id: studentId,
-        name: `${req.body.name} ${req.body.lastName || ""}`.trim(),
-        role: "student",
-        feeStatus: "pending",
-        address: req.body.address || "",
-        profilePic: req.body.profilePic || null
-      };
-      delete newStudent.password;
-      
-      users.push(studentUser);
-      students.push(newStudent);
+      await query(
+        "INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)",
+        [studentId, name, email, hashedPassword, "student"]
+      );
 
-      // Create initial fee records for new student
-      const initialFees = [
-        {
-          id: uuidv4(),
-          studentId,
-          title: "Admission Fee",
-          amount: parseInt(req.body.admissionFees || "5000"),
-          date: new Date().toISOString(),
-          status: "pending"
-        },
-        {
-          id: uuidv4(),
-          studentId,
-          title: `Monthly Fee - ${new Date().toLocaleString('default', { month: 'long' })}`,
-          amount: parseInt(req.body.monthlyFees || "2000"),
-          date: new Date().toISOString(),
-          status: "pending"
-        }
-      ];
-      fees.push(...initialFees);
-      
-      await writeCol("users", users);
-      await writeCol("students", students);
-      await writeCol("fees", fees);
-      
-      console.log(`Student created: ${req.body.email} with password: ${password}`);
-      res.status(201).json(newStudent);
-    } catch (err: any) {
-      console.error("Student creation error:", err);
-      res.status(500).json({ error: "Internal server error" });
+      await query(
+        "INSERT INTO students (id, name, email, role, class, section, feeStatus, rollNumber) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [studentId, name, email, "student", cls || "Unassigned", section || "N/A", feeStatus || "pending", rollNumber || `S-${Math.floor(1000 + Math.random() * 9000)}`]
+      );
+
+      res.status(201).json({ id: studentId, name, email, role: "student" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Creation failed" });
     }
   });
-
   // Teacher Routes
   app.get("/api/teachers", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const teachers = await readCol("teachers");
+    const teachers = await query("SELECT * FROM teachers");
     res.json(teachers);
   });
 
   app.post("/api/teachers", authenticate, authorize(["admin"]), async (req, res) => {
-    console.log("Creating teacher:", req.body);
     try {
-      const teachers = await readCol("teachers");
-      const users = await readCol("users");
+      const { name, email, subject, qualification, joinDate, salary, status, password: rawPassword } = req.body;
+      const existing: any = await query("SELECT * FROM users WHERE email = ?", [email]);
       
-      if (users.find((u: any) => u.email === req.body.email)) {
+      if (existing.length > 0) {
         return res.status(400).json({ error: "Email already exists" });
       }
 
       const teacherId = uuidv4();
-      const teacherUser = {
-        id: teacherId,
-        name: req.body.name,
-        email: req.body.email,
-        password: await bcrypt.hash(req.body.password || "teacher123", 10),
-        role: "teacher",
-        createdAt: new Date().toISOString()
-      };
+      const password = rawPassword && rawPassword.trim() !== "" ? rawPassword : "teacher123";
+      const hashedPassword = await bcrypt.hash(password, 10);
       
-      const newTeacher = {
-        ...req.body,
-        id: teacherId,
-        role: "teacher",
-      };
-      delete newTeacher.password;
-      
-      users.push(teacherUser);
-      teachers.push(newTeacher);
-      
-      await writeCol("users", users);
-      await writeCol("teachers", teachers);
-      console.log("Teacher created successfully:", teacherId);
-      res.status(201).json(newTeacher);
-    } catch (err: any) {
-      console.error("Teacher creation error:", err);
-      res.status(500).json({ error: "Internal server error" });
+      await query(
+        "INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)",
+        [teacherId, name, email, hashedPassword, "teacher"]
+      );
+
+      await query(
+        "INSERT INTO teachers (id, name, email, role, subject, qualification, joinDate, salary, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [teacherId, name, email, "teacher", subject, qualification, joinDate || new Date().toISOString().split('T')[0], salary || 0, status || 'active']
+      );
+
+      res.status(201).json({ id: teacherId, name, email, role: "teacher" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Teacher creation failed" });
     }
   });
 
   // Attendance
   app.get("/api/attendance", authenticate, async (req: any, res) => {
-    const attendance = await readCol("attendance");
-    if (req.user.role === "student") {
-      return res.json(attendance.filter((a: any) => a.studentId === req.user.id));
+    try {
+      if (req.user.role === "student") {
+        const attendance = await query("SELECT * FROM attendance WHERE studentId = ?", [req.user.id]);
+        return res.json(attendance);
+      }
+      const attendance = await query("SELECT * FROM attendance");
+      res.json(attendance);
+    } catch (err) {
+      res.status(500).json({ error: "Fetch failed" });
     }
-    res.json(attendance);
-  });
-
-  app.get("/api/attendance/:class", authenticate, async (req, res) => {
-    const attendance = await readCol("attendance");
-    // In a real app we'd join with students, for now just filter by student class if provided
-    res.json(attendance);
   });
 
   app.post("/api/attendance", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const attendance = await readCol("attendance");
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Filter out records where student already has attendance for today
-    const recordsToMark = req.body.filter((rec: any) => {
-      const alreadyMarked = attendance.some((a: any) => 
-        a.studentId === rec.studentId && 
-        a.date.startsWith(today)
-      );
-      return !alreadyMarked;
-    });
-
-    if (recordsToMark.length === 0 && req.body.length > 0) {
-      return res.status(400).json({ error: "Attendance already marked for today" });
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const records = req.body; // Array of { studentId, status }
+      
+      for (const rec of records) {
+        const existing: any = await query("SELECT * FROM attendance WHERE studentId = ? AND date = ?", [rec.studentId, today]);
+        if (existing.length === 0) {
+          await query(
+            "INSERT INTO attendance (id, studentId, date, status) VALUES (?, ?, ?, ?)",
+            [uuidv4(), rec.studentId, today, rec.status]
+          );
+        } else {
+          await query("UPDATE attendance SET status = ? WHERE id = ?", [rec.status, existing[0].id]);
+        }
+      }
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Update failed" });
     }
-
-    const newRecords = recordsToMark.map((rec: any) => ({
-      ...rec,
-      id: uuidv4(),
-      date: new Date().toISOString()
-    }));
-    attendance.push(...newRecords);
-    await writeCol("attendance", attendance);
-    res.json(newRecords);
   });
 
   // Announcements
   app.get("/api/announcements", authenticate, async (req: any, res) => {
-    const ann = await readCol("announcements");
-    res.json(ann.filter((a: any) => a.targetRoles.includes(req.user.role)));
+    try {
+      const ann: any = await query("SELECT * FROM announcements");
+      const filtered = ann.filter((a: any) => {
+        let roles = [];
+        try {
+          roles = typeof a.targetRoles === 'string' ? JSON.parse(a.targetRoles) : a.targetRoles;
+          if (!Array.isArray(roles)) roles = [];
+        } catch (e) {
+          roles = [];
+        }
+        return roles.includes(req.user.role) || req.user.role === 'admin';
+      });
+      res.json(filtered);
+    } catch (err) {
+      res.status(500).json({ error: "Fetch failed" });
+    }
   });
 
   app.post("/api/announcements", authenticate, authorize(["admin"]), async (req, res) => {
-    const ann = await readCol("announcements");
-    const newAnn = { ...req.body, id: uuidv4(), date: new Date().toISOString() };
-    ann.push(newAnn);
-    await writeCol("announcements", ann);
-    res.json(newAnn);
+    try {
+      const { title, content, targetRoles } = req.body;
+      const id = uuidv4();
+      await query(
+        "INSERT INTO announcements (id, title, content, targetRoles) VALUES (?, ?, ?, ?)",
+        [id, title, content, JSON.stringify(targetRoles)]
+      );
+      res.status(201).json({ id, title, content, targetRoles });
+    } catch (err) {
+      res.status(500).json({ error: "Creation failed" });
+    }
   });
 
   app.delete("/api/announcements/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let announcements = await readCol("announcements");
-    announcements = announcements.filter((a: any) => a.id !== req.params.id);
-    await writeCol("announcements", announcements);
+    await query("DELETE FROM announcements WHERE id = ?", [req.params.id]);
     res.json({ message: "Deleted successfully" });
   });
 
   // Library Management
   app.get("/api/library", authenticate, async (req, res) => {
-    const books = await readCol("books");
+    const books = await query("SELECT * FROM books");
     res.json(books);
   });
   app.post("/api/library", authenticate, authorize(["admin"]), async (req, res) => {
-    const books = await readCol("books");
-    const newBook = { ...req.body, id: uuidv4(), status: 'available', createdAt: new Date().toISOString() };
-    books.push(newBook);
-    await writeCol("books", books);
-    res.json(newBook);
+    const id = uuidv4();
+    const { title, author, isbn } = req.body;
+    await query("INSERT INTO books (id, title, author, isbn, status) VALUES (?, ?, ?, ?, ?)", [id, title, author, isbn, 'available']);
+    res.json({ id, title, author, isbn, status: 'available' });
   });
   app.put("/api/library/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let books = await readCol("books");
-    const idx = books.findIndex((b: any) => b.id === req.params.id);
-    if (idx > -1) {
-      books[idx] = { ...books[idx], ...req.body };
-      await writeCol("books", books);
-      res.json(books[idx]);
-    } else res.status(404).json({ error: "Not found" });
+    const { title, author, isbn, status } = req.body;
+    await query("UPDATE books SET title = ?, author = ?, isbn = ?, status = ? WHERE id = ?", [title, author, isbn, status, req.params.id]);
+    res.json({ success: true });
   });
   app.delete("/api/library/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let books = await readCol("books");
-    books = books.filter((b: any) => b.id !== req.params.id);
-    await writeCol("books", books);
+    await query("DELETE FROM books WHERE id = ?", [req.params.id]);
     res.json({ success: true });
   });
 
   // Transport Management
+  // Transport Routes
   app.get("/api/transport", authenticate, async (req, res) => {
-    const transport = await readCol("transport");
+    const transport = await query("SELECT * FROM transport");
     res.json(transport);
   });
   app.post("/api/transport", authenticate, authorize(["admin"]), async (req, res) => {
-    const transport = await readCol("transport");
-    const newRoute = { ...req.body, id: uuidv4() };
-    transport.push(newRoute);
-    await writeCol("transport", transport);
-    res.json(newRoute);
+    const id = uuidv4();
+    const { name, base, driverPhone } = req.body;
+    await query("INSERT INTO transport (id, name, base, driverPhone) VALUES (?, ?, ?, ?)", [id, name, base, driverPhone]);
+    res.json({ id, ...req.body });
   });
   app.delete("/api/transport/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let transport = await readCol("transport");
-    transport = transport.filter((t: any) => t.id !== req.params.id);
-    await writeCol("transport", transport);
+    await query("DELETE FROM transport WHERE id = ?", [req.params.id]);
     res.json({ success: true });
   });
 
   // Dormitory Management
   app.get("/api/dormitory", authenticate, async (req, res) => {
-    const dorms = await readCol("dormitory");
+    const dorms = await query("SELECT * FROM dormitory");
     res.json(dorms);
   });
   app.post("/api/dormitory", authenticate, authorize(["admin"]), async (req, res) => {
-    const dorms = await readCol("dormitory");
-    const newDorm = { ...req.body, id: uuidv4() };
-    dorms.push(newDorm);
-    await writeCol("dormitory", dorms);
-    res.json(newDorm);
+    const id = uuidv4();
+    const { name, capacity, occupied } = req.body;
+    await query("INSERT INTO dormitory (id, name, capacity, occupied) VALUES (?, ?, ?, ?)", [id, name, capacity, occupied || 0]);
+    res.json({ id, ...req.body });
   });
   app.delete("/api/dormitory/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let dorms = await readCol("dormitory");
-    dorms = dorms.filter((d: any) => d.id !== req.params.id);
-    await writeCol("dormitory", dorms);
+    await query("DELETE FROM dormitory WHERE id = ?", [req.params.id]);
     res.json({ success: true });
   });
 
   // Exams & Results
   app.get("/api/exams", authenticate, async (req, res) => {
-    const exams = await readCol("exams");
+    const exams = await query("SELECT * FROM exams");
     res.json(exams);
   });
   app.post("/api/exams", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const exams = await readCol("exams");
-    const newExam = { ...req.body, id: uuidv4(), status: 'pending' };
-    exams.push(newExam);
-    await writeCol("exams", exams);
-    res.json(newExam);
+    const id = uuidv4();
+    const { title, subject, class: cls, date } = req.body;
+    await query("INSERT INTO exams (id, title, subject, class, date, status) VALUES (?, ?, ?, ?, ?, ?)", [id, title, subject, cls, date, 'pending']);
+    res.json({ id, title, subject, class: cls, date, status: 'pending' });
   });
   app.delete("/api/exams/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let exams = await readCol("exams");
-    exams = exams.filter((e: any) => e.id !== req.params.id);
-    await writeCol("exams", exams);
+    await query("DELETE FROM exams WHERE id = ?", [req.params.id]);
     res.json({ success: true });
   });
+
   app.post("/api/exams/:id/results", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const results = await readCol("exam_results");
-    const newResults = req.body; // Array of { studentId, marks, grade }
-    const entry = { examId: req.params.id, data: newResults, updatedAt: new Date().toISOString() };
-    results.push(entry);
-    await writeCol("exam_results", results);
-    res.json(entry);
+    const results = req.body; // Array of { studentId, marks, grade }
+    await query("INSERT INTO exam_results (examId, data) VALUES (?, ?)", [req.params.id, JSON.stringify(results)]);
+    res.json({ success: true });
   });
+
   app.get("/api/exams/results", authenticate, async (req:any, res) => {
-    const results = await readCol("exam_results");
-    if (req.user.role === 'student') {
-      // Filter results where student appears in the data array
-      const myResults = results.map((r:any) => ({
-        ...r,
-        record: r.data.find((d:any) => d.studentId === req.user.id)
-      })).filter((r:any) => r.record);
-      return res.json(myResults);
+    try {
+      const results: any = await query("SELECT * FROM exam_results");
+      if (req.user.role === 'student') {
+        const myResults = results.map((r: any) => ({
+          ...r,
+          record: JSON.parse(JSON.stringify(r.data)).find((d: any) => d.studentId === req.user.id)
+        })).filter((r: any) => r.record);
+        return res.json(myResults);
+      }
+      res.json(results);
+    } catch (err) {
+      res.status(500).json({ error: "Fetch failed" });
     }
-    res.json(results);
   });
 
   // Study Material
   app.get("/api/materials", authenticate, async (req:any, res) => {
-    const materials = await readCol("materials");
     if (req.user.role === 'student') {
-      const students = await readCol("students");
-      const me = students.find((s:any) => s.id === req.user.id);
-      return res.json(materials.filter((m:any) => m.class === me?.class));
+      const student: any = await query("SELECT class FROM students WHERE id = ?", [req.user.id]);
+      if (student.length === 0) return res.json([]);
+      const materials = await query("SELECT * FROM materials WHERE class = ?", [student[0].class]);
+      return res.json(materials);
     }
+    const materials = await query("SELECT * FROM materials");
     res.json(materials);
   });
   app.post("/api/materials", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const materials = await readCol("materials");
-    const newMat = { ...req.body, id: uuidv4(), createdAt: new Date().toISOString() };
-    materials.push(newMat);
-    await writeCol("materials", materials);
-    res.json(newMat);
+    const id = uuidv4();
+    const { title, class: cls, type } = req.body;
+    await query("INSERT INTO materials (id, title, class, type) VALUES (?, ?, ?, ?)", [id, title, cls, type]);
+    res.json({ id, ...req.body });
   });
   app.delete("/api/materials/:id", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    let materials = await readCol("materials");
-    materials = materials.filter((m: any) => m.id !== req.params.id);
-    await writeCol("materials", materials);
+    await query("DELETE FROM materials WHERE id = ?", [req.params.id]);
     res.json({ success: true });
   });
 
   // Stats for Admin Dashboard
   app.get("/api/stats", authenticate, authorize(["admin"]), async (req, res) => {
-    const students = await readCol("students");
-    const teachers = await readCol("teachers");
-    const fees = await readCol("fees");
-    
-    const totalFees = fees.filter((f: any) => f.status === "paid").reduce((acc: number, f: any) => acc + f.amount, 0);
-    const pendingFees = fees.filter((f: any) => f.status === "pending").reduce((acc: number, f: any) => acc + f.amount, 0);
+    try {
+      const studentCount: any = await query("SELECT COUNT(*) as count FROM students");
+      const teacherCount: any = await query("SELECT COUNT(*) as count FROM teachers");
+      const paidFees: any = await query("SELECT SUM(amount) as total FROM fees WHERE status = 'paid'");
+      const pendingFees: any = await query("SELECT SUM(amount) as total FROM fees WHERE status = 'pending'");
 
-    res.json({
-      totalStudents: students.length,
-      totalTeachers: teachers.length,
-      totalIncome: totalFees,
-      pendingFees: pendingFees,
-      attendanceRate: 85, // Mock rate for now
-    });
+      res.json({
+        totalStudents: studentCount[0].count,
+        totalTeachers: teacherCount[0].count,
+        totalIncome: paidFees[0].total || 0,
+        pendingFees: pendingFees[0].total || 0,
+        attendanceRate: 85,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Stats failed" });
+    }
   });
 
   // Leave Applications
   app.get("/api/applications", authenticate, async (req: any, res) => {
-    const apps = await readCol("applications");
     if (req.user.role === "student") {
-      return res.json(apps.filter((a: any) => a.studentId === req.user.id));
+      const apps = await query("SELECT * FROM applications WHERE studentId = ?", [req.user.id]);
+      return res.json(apps);
     }
+    const apps = await query("SELECT * FROM applications");
     res.json(apps);
   });
 
   app.post("/api/applications", authenticate, authorize(["student"]), async (req: any, res) => {
-    const apps = await readCol("applications");
-    const newApp = {
-      id: uuidv4(),
-      studentId: req.user.id,
-      studentName: req.user.name,
-      reason: req.body.reason,
-      startDate: req.body.startDate,
-      endDate: req.body.endDate,
-      status: "pending",
-      createdAt: new Date().toISOString()
-    };
-    apps.push(newApp);
-    await writeCol("applications", apps);
-    res.status(201).json(newApp);
+    const id = uuidv4();
+    const { reason, startDate, endDate } = req.body;
+    await query(
+      "INSERT INTO applications (id, studentId, type, reason, status) VALUES (?, ?, ?, ?, ?)",
+      [id, req.user.id, "Leave", reason, "pending"]
+    );
+    res.status(201).json({ id, reason, status: "pending" });
   });
 
   app.patch("/api/applications/:id", authenticate, authorize(["admin", "teacher"]), async (req, res) => {
-    const apps = await readCol("applications");
-    const index = apps.findIndex((a: any) => a.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: "Not found" });
-    
-    apps[index].status = req.body.status;
-    await writeCol("applications", apps);
-    res.json(apps[index]);
+    await query("UPDATE applications SET status = ? WHERE id = ?", [req.body.status, req.params.id]);
+    res.json({ success: true });
   });
 
   // Exams & Results
@@ -596,220 +620,138 @@ async function startServer() {
 
   // Schedule
   app.get("/api/schedule", authenticate, async (req: any, res) => {
-    const schedule = await readCol("schedule");
     if (req.user.role === "student") {
-      return res.json(schedule.filter((s: any) => s.userId === req.user.id));
+      const student: any = await query("SELECT class FROM students WHERE id = ?", [req.user.id]);
+      if (student.length === 0) return res.json([]);
+      const schedule = await query("SELECT * FROM schedule WHERE class = ?", [student[0].class]);
+      return res.json(schedule);
     }
+    const schedule = await query("SELECT * FROM schedule");
     res.json(schedule);
   });
 
   // Helper to generate monthly fees
   const generateMonthlyFees = async () => {
-    const students = await readCol("students");
-    const fees = await readCol("fees");
-    const today = new Date();
-    const month = today.toLocaleString('default', { month: 'long' });
-    const year = today.getFullYear();
-    const title = `Monthly Tuition Fee - ${month} ${year}`;
-    
-    // Only run if today is 28th or later and we haven't generated for this month
-    if (today.getDate() < 28) return;
-    
-    let updated = false;
-    for (const student of students) {
-      const exists = fees.find((f: any) => 
-        f.studentId === student.id && 
-        f.title === title
-      );
-      
-      if (!exists) {
-        // Due date is 10th of next month
-        const dueDate = new Date(year, today.getMonth() + 1, 10);
-        
-        fees.push({
-          id: uuidv4(),
-          studentId: student.id,
-          title: title,
-          amount: parseInt(student.monthlyFees || "2000"),
-          date: today.toISOString(),
-          dueDate: dueDate.toISOString(),
-          status: "pending",
-          isMonthly: true
-        });
-        updated = true;
-      }
-    }
-    
-    if (updated) await writeCol("fees", fees);
-  };
+    try {
+      const today = new Date();
+      if (today.getDate() < 25) return;
 
-  // Helper to apply late fees
-  const applyLateFees = async () => {
-    const fees = await readCol("fees");
-    const today = new Date();
-    let updated = false;
-    
-    for (let i = 0; i < fees.length; i++) {
-      const fee = fees[i];
-      if (fee.status === "pending" && fee.dueDate) {
-        const dueDate = new Date(fee.dueDate);
-        if (today > dueDate && !fee.lateFeeApplied) {
-          fee.amount += 1500;
-          fee.lateFeeApplied = true;
-          fee.lateFeeAmount = 1500;
-          updated = true;
+      const month = today.toLocaleString('default', { month: 'long' });
+      const year = today.getFullYear();
+      const title = `Monthly Tuition Fee - ${month} ${year}`;
+      
+      const students: any = await query("SELECT id FROM students");
+      for (const student of students) {
+        const exists: any = await query("SELECT id FROM fees WHERE studentId = ? AND title = ?", [student.id, title]);
+        if (exists.length === 0) {
+          await query(
+            "INSERT INTO fees (id, studentId, title, amount, date, status) VALUES (?, ?, ?, ?, ?, ?)",
+            [uuidv4(), student.id, title, 2000, today.toISOString().split('T')[0], "pending"]
+          );
         }
       }
+    } catch (err) {
+      console.error("Fee generation error:", err);
     }
-    
-    if (updated) await writeCol("fees", fees);
   };
 
   // Run checks on relevant requests
   app.use("/api/fees", async (req, res, next) => {
     if (req.method === "GET") {
       await generateMonthlyFees();
-      await applyLateFees();
     }
     next();
   });
 
   // Fees
   app.get("/api/fees", authenticate, async (req: any, res) => {
-    const fees = await readCol("fees");
     if (req.user.role === "student") {
-      return res.json(fees.filter((f: any) => f.studentId === req.user.id));
+      const fees = await query("SELECT * FROM fees WHERE studentId = ?", [req.user.id]);
+      return res.json(fees);
     }
+    const fees = await query("SELECT * FROM fees");
     res.json(fees);
   });
 
   app.post("/api/fees/add-charge", authenticate, authorize(["admin"]), async (req, res) => {
-    const { studentId, title, amount, dueDate, targetType, targetClass, targetSection } = req.body;
-    
-    if (!title || !amount) return res.status(400).json({ error: "Missing fields" });
-    
-    const fees = await readCol("fees");
-    const students = await readCol("students");
-    let targetStudents = [];
+    try {
+      const { studentId, title, amount, targetType, targetClass } = req.body;
+      let students: any[] = [];
+      
+      if (targetType === "school") {
+        const result = await query("SELECT id FROM students");
+        students = Array.isArray(result) ? result : [];
+      } else if (targetType === "class") {
+        const result = await query("SELECT id FROM students WHERE class = ?", [targetClass]);
+        students = Array.isArray(result) ? result : [];
+      } else if (studentId) {
+        students = [{ id: studentId }];
+      }
 
-    if (targetType === "school") {
-      targetStudents = students;
-    } else if (targetType === "class") {
-      targetStudents = students.filter((s: any) => s.class === targetClass);
-    } else if (studentId) {
-      targetStudents = students.filter((s: any) => s.id === studentId);
+      for (const student of students) {
+        await query(
+          "INSERT INTO fees (id, studentId, title, amount, date, status) VALUES (?, ?, ?, ?, ?, ?)",
+          [uuidv4(), student.id, title, amount, new Date().toISOString().split('T')[0], "pending"]
+        );
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Charge failed" });
     }
-
-    if (targetStudents.length === 0) return res.status(404).json({ error: "No students found for criteria" });
-
-    const newFees = targetStudents.map(student => ({
-      id: uuidv4(),
-      studentId: student.id,
-      title,
-      amount: parseInt(amount),
-      date: new Date().toISOString(),
-      dueDate: dueDate || new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-      status: "pending"
-    }));
-    
-    fees.push(...newFees);
-    await writeCol("fees", fees);
-    res.status(201).json({ message: `Added charges to ${newFees.length} students` });
   });
 
   app.put("/api/students/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    const students = await readCol("students");
-    const index = students.findIndex((s: any) => s.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: "Student not found" });
-
-    students[index] = { ...students[index], ...req.body };
-    await writeCol("students", students);
-    
-    // Also update user name if needed
-    const users = await readCol("users");
-    const uIndex = users.findIndex((u: any) => u.id === req.params.id);
-    if (uIndex !== -1) {
-      users[uIndex].name = `${req.body.name} ${req.body.lastName || ""}`.trim();
-      await writeCol("users", users);
+    try {
+      const { name, email, class: cls, section, rollNumber, feeStatus } = req.body;
+      await query(
+        "UPDATE students SET name = ?, email = ?, class = ?, section = ?, rollNumber = ?, feeStatus = ? WHERE id = ?",
+        [name, email, cls, section, rollNumber, feeStatus, req.params.id]
+      );
+      await query("UPDATE users SET name = ?, email = ? WHERE id = ?", [name, email, req.params.id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Update failed" });
     }
-
-    res.json(students[index]);
   });
 
   app.delete("/api/students/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    let students = await readCol("students");
-    let users = await readCol("users");
-    let fees = await readCol("fees");
-
-    students = students.filter((s: any) => s.id !== req.params.id);
-    users = users.filter((u: any) => u.id !== req.params.id);
-    fees = fees.filter((f: any) => f.studentId !== req.params.id);
-
-    await writeCol("students", students);
-    await writeCol("users", users);
-    await writeCol("fees", fees);
-
-    res.json({ message: "Student deleted successfully" });
+    try {
+      await query("DELETE FROM users WHERE id = ?", [req.params.id]); // Cascade will handle student record
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Deletion failed" });
+    }
   });
 
-  app.post("/api/schedule", authenticate, async (req: any, res) => {
-    const schedule = await readCol("schedule");
-    const newEntry = {
-      ...req.body,
-      id: uuidv4(),
-      userId: req.user.id // Track who created/owns this entry
-    };
-    schedule.push(newEntry);
-    await writeCol("schedule", schedule);
-    res.status(201).json(newEntry);
+  app.post("/api/schedule", authenticate, authorize(["admin"]), async (req: any, res) => {
+    const id = uuidv4();
+    const { class: cls, day, time, subject, teacher } = req.body;
+    await query("INSERT INTO schedule (id, class, day, time, subject, teacher) VALUES (?, ?, ?, ?, ?, ?)", [id, cls, day, time, subject, teacher]);
+    res.json({ id, ...req.body });
   });
 
-  app.delete("/api/schedule/:id", authenticate, async (req: any, res) => {
-    let schedule = await readCol("schedule");
-    schedule = schedule.filter((s: any) => s.id !== req.params.id);
-    await writeCol("schedule", schedule);
+  app.delete("/api/schedule/:id", authenticate, authorize(["admin"]), async (req: any, res) => {
+    await query("DELETE FROM schedule WHERE id = ?", [req.params.id]);
     res.json({ message: "Deleted" });
   });
 
   app.post("/api/fees/:id/pay", authenticate, authorize(["student"]), async (req: any, res) => {
-    const fees = await readCol("fees");
-    const index = fees.findIndex((f: any) => f.id === req.params.id && f.studentId === req.user.id);
-    if (index === -1) return res.status(404).json({ error: "Fee record not found" });
-    
-    fees[index].status = "submitted"; // Changed to submitted for admin approval
-    fees[index].submissionDate = new Date().toISOString();
-    fees[index].screenshot = req.body.screenshot || "placeholder_screenshot_url";
-    await writeCol("fees", fees);
-    res.json(fees[index]);
+    await query("UPDATE fees SET status = 'paid' WHERE id = ? AND studentId = ?", [req.params.id, req.user.id]);
+    res.json({ success: true });
   });
 
   app.patch("/api/fees/:id/approve", authenticate, authorize(["admin"]), async (req: any, res) => {
-    const fees = await readCol("fees");
-    const index = fees.findIndex((f: any) => f.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: "Fee record not found" });
-    
-    fees[index].status = "paid";
-    fees[index].approvalDate = new Date().toISOString();
-    await writeCol("fees", fees);
-    
-    // Also update student profile status if needed
-    const students = await readCol("students");
-    const sIndex = students.findIndex((s: any) => s.id === fees[index].studentId);
-    if (sIndex !== -1) {
-      const pendingFees = fees.filter((f: any) => f.studentId === students[sIndex].id && f.status !== "paid");
-      students[sIndex].feeStatus = pendingFees.length > 0 ? "pending" : "paid";
-      await writeCol("students", students);
-    }
-    
-    res.json(fees[index]);
+    await query("UPDATE fees SET status = 'paid' WHERE id = ?", [req.params.id]);
+    res.json({ success: true });
   });
 
   // Results
   app.get("/api/results", authenticate, async (req: any, res) => {
-    const results = await readCol("results");
     if (req.user.role === "student") {
-      return res.json(results.filter((r: any) => r.studentId === req.user.id));
+      const results = await query("SELECT * FROM results WHERE studentId = ?", [req.user.id]);
+      return res.json(results);
     }
+    const results = await query("SELECT * FROM results");
     res.json(results);
   });
 
