@@ -21,25 +21,29 @@ sqliteDb.pragma('foreign_keys = ON');
 
 async function initPool() {
   if (process.env.MYSQL_HOST) {
+    console.log(`Attempting to connect to MySQL at ${process.env.MYSQL_HOST}...`);
     try {
       mysqlPool = mysql.createPool({
         host: process.env.MYSQL_HOST,
         port: parseInt(process.env.MYSQL_PORT || '3306'),
         user: process.env.MYSQL_USER,
         password: process.env.MYSQL_PASSWORD,
-        database: process.env.MYSQL_DATABASE,
+        database: process.env.MYSQL_DATABASE || 'school_management',
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,
-        connectTimeout: 5000
+        connectTimeout: 10000 // 10 seconds timeout
       });
       // Test connection
       await mysqlPool.query('SELECT 1');
-      console.log("Successfully connected to MySQL database.");
+      console.log("✅ SUCCESS: Connected to MySQL database.");
     } catch (err) {
-      console.error("MySQL Connection failed, falling back to SQLite:", (err as Error).message);
+      console.error("❌ MySQL Connection FAILED:", (err as Error).message);
+      console.log("ℹ️ Info: App will use SQLite as fallback for this session.");
       mysqlPool = null;
     }
+  } else {
+    console.log("ℹ️ No MYSQL_HOST provided. Using SQLite database.");
   }
 }
 
@@ -49,21 +53,27 @@ async function query(sql: string, params?: any[]) {
       const [rows]: any = await mysqlPool.execute(sql, params);
       return rows;
     } catch (err) {
-      console.error("MySQL Query Error:", err);
+      console.error("MySQL Query Error:", err, "SQL:", sql);
       throw err;
     }
   } else {
-    const stmt = sqliteDb.prepare(sql);
-    if (sql.trim().toUpperCase().startsWith("SELECT")) {
-      return stmt.all(params || []);
-    } else {
-      return stmt.run(params || []);
+    try {
+      const stmt = sqliteDb.prepare(sql);
+      if (sql.trim().toUpperCase().startsWith("SELECT")) {
+        return stmt.all(params || []);
+      } else {
+        return stmt.run(params || []);
+      }
+    } catch (err) {
+      console.error("SQLite Query Error:", err, "SQL:", sql);
+      throw err;
     }
   }
 }
 
 // Helper to ensure database tables exist
 async function initDb() {
+  console.log("🛠️ Starting database initialization...");
   const tables = [
     `CREATE TABLE IF NOT EXISTS users (
       id VARCHAR(36) PRIMARY KEY,
