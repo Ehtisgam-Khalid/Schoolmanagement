@@ -175,13 +175,21 @@ async function initDb() {
       capacity INT,
       occupied INT DEFAULT 0
     )`,
-    `CREATE TABLE IF NOT EXISTS exam_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      examId VARCHAR(36),
-      data TEXT,
-      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (examId) REFERENCES exams(id) ON DELETE CASCADE
-    )`,
+    mysqlPool 
+      ? `CREATE TABLE IF NOT EXISTS exam_results (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          examId VARCHAR(36),
+          data TEXT,
+          updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (examId) REFERENCES exams(id) ON DELETE CASCADE
+        )`
+      : `CREATE TABLE IF NOT EXISTS exam_results (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          examId VARCHAR(36),
+          data TEXT,
+          updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (examId) REFERENCES exams(id) ON DELETE CASCADE
+        )`,
     `CREATE TABLE IF NOT EXISTS materials (
       id VARCHAR(36) PRIMARY KEY,
       title VARCHAR(255),
@@ -221,6 +229,15 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  // Database Connection Info (Diagnostic)
+  app.get("/api/db-config", (req, res) => {
+    res.json({
+      database: mysqlPool ? "MySQL" : "SQLite (Fallback)",
+      host: process.env.MYSQL_HOST || "none",
+      online: !!mysqlPool
+    });
+  });
 
   // Auth Middleware
   const authenticate = (req: any, res: any, next: any) => {
